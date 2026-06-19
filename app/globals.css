@@ -379,3 +379,24 @@ html[data-theme="light"] .neilzz-register-pill {
   border-color: rgba(22,17,17,.18) !important;
 }
 html[data-theme="light"] .neilzz-register-pill * { color: #fff8f1 !important; }
+
+
+/* Stage 15: iPhone Safari stability */
+@supports (height: 100svh) {
+  .min-h-screen { min-height: 100svh; }
+}
+
+@media (max-width: 767px) {
+  html, body {
+    min-height: 100svh;
+    overflow-x: hidden;
+  }
+
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sparkle {
+    opacity: .34;
+  }
+}

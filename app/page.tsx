@@ -292,23 +292,23 @@ export default function Home() {
 
       <SiteHeader />
 
-      <section className="relative z-10 min-h-screen px-5 pt-24 md:px-8 md:pt-28">
+      <section className="relative z-10 min-h-[100svh] overflow-visible px-5 pb-28 pt-24 md:min-h-screen md:px-8 md:pb-0 md:pt-28">
         <SparkleField />
-        <div className="mx-auto grid min-h-[calc(100vh-6rem)] max-w-[1500px] items-center gap-10 lg:grid-cols-[0.82fr_1.18fr]">
-          <motion.div style={{ y: heroLift }} className="relative z-10 max-w-3xl pt-8 lg:pt-0">
+        <div className="mx-auto grid min-h-[calc(100svh-6rem)] max-w-[1500px] items-center gap-10 md:min-h-[calc(100vh-6rem)] lg:grid-cols-[0.82fr_1.18fr]">
+          <motion.div className="relative z-10 max-w-3xl pt-8 lg:pt-0 lg:[transform:var(--hero-lift)]">
             <motion.div
-              initial={{ opacity: 0, y: 18, filter: "blur(10px)" }}
+              initial={false}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 0.75 }}
+              transition={{ duration: 0.35 }}
               className="inline-flex rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-[0.62rem] font-bold uppercase tracking-[0.38em] text-[var(--rose-strong)] backdrop-blur-xl"
             >
               {homepageContent.badge}
             </motion.div>
 
             <motion.h1
-              initial={{ opacity: 0, y: 42, filter: "blur(16px)" }}
+              initial={false}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 1, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="editorial-title mt-8 max-w-3xl text-[11.2vw] leading-[0.9] sm:text-[4.05rem] lg:text-[4.75rem] xl:text-[5.25rem]"
             >
               {homepageContent.titleLine1}
@@ -317,18 +317,18 @@ export default function Home() {
             </motion.h1>
 
             <motion.p
-              initial={{ opacity: 0, y: 22 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.75, delay: 0.32 }}
+              transition={{ duration: 0.35 }}
               className="mt-7 max-w-lg text-base leading-8 text-[var(--muted)] md:text-[1.05rem] md:leading-9"
             >
               {homepageContent.subtitle}
             </motion.p>
 
             <motion.div
-              initial={{ opacity: 0, y: 22 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.75, delay: 0.48 }}
+              transition={{ duration: 0.35 }}
               className="mt-8 flex flex-col gap-3 sm:flex-row"
             >
               <LuxuryButton href="/gallery" solid>
@@ -346,7 +346,7 @@ export default function Home() {
             initial={{ opacity: 0, x: 54, filter: "blur(18px)" }}
             animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             transition={{ duration: 1.05, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-            className="relative min-h-[500px] pb-8 sm:min-h-[580px] lg:min-h-[650px]"
+            className="relative min-h-[430px] pb-8 sm:min-h-[580px] lg:min-h-[650px]"
           >
             <div className="absolute inset-0 rounded-[3rem] bg-[var(--rose)]/10 blur-[110px]" />
             <div className="ribbon absolute -left-12 top-12 h-20 w-[120%] rounded-full bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--rose)_20%,transparent),transparent)] blur-2xl" />
@@ -659,7 +659,7 @@ export default function Home() {
         </div>
       </footer>
 
-      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_78%,transparent)] px-3 py-3 text-xs font-medium text-[var(--muted)] backdrop-blur-2xl md:hidden">
+      <nav className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_78%,transparent)] px-3 py-3 text-xs font-medium text-[var(--muted)] backdrop-blur-2xl md:hidden">
         <a href="/gallery">Galerie</a>
         <a href="/reviews">Review-uri</a>
         <a href="/booking">Booking</a>
