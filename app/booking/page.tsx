@@ -33,6 +33,7 @@ const steps = [
 function statusLabel(status: string, note?: string | null) {
   if (note) return note;
   if (status === "full") return "Complet ocupat";
+  if (status === "closed") return "Închis temporar";
   if (status === "vacation") return "Concediu";
   if (status === "limited") return "Locuri limitate";
   return "Disponibil";
@@ -46,6 +47,7 @@ function displayDateLabel(dateLabel: string) {
 
 function statusClass(status: string) {
   if (status === "full") return "status-pill status-full";
+  if (status === "closed") return "status-pill status-full";
   if (status === "vacation") return "status-pill status-vacation";
   if (status === "limited") return "status-pill status-limited";
   return "status-pill status-available";
@@ -53,6 +55,7 @@ function statusClass(status: string) {
 
 function statusDotClass(status: string) {
   if (status === "full") return "bg-red-300 shadow-[0_0_22px_rgba(252,165,165,.78)]";
+  if (status === "closed") return "bg-zinc-300 shadow-[0_0_22px_rgba(212,212,216,.55)]";
   if (status === "vacation") return "bg-amber-300 shadow-[0_0_22px_rgba(252,211,77,.72)]";
   if (status === "limited") return "bg-yellow-300 shadow-[0_0_22px_rgba(253,224,71,.72)]";
   return "bg-emerald-300 shadow-[0_0_22px_rgba(110,231,183,.74)]";
@@ -104,9 +107,9 @@ export default function BookingPage() {
             <p className="mt-6 max-w-xl text-base leading-8 text-[var(--muted)]">
               Programările se fac prin Instagram pentru ca fiecare set să fie confirmat personal, curat și fără formular rece.
             </p>
-            {nextDay.status === "vacation" ? (
+            {["vacation", "closed", "full"].includes(nextDay.status) ? (
               <div className="mt-8 inline-flex items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-6 py-3.5 text-sm font-semibold text-[var(--muted)]">
-                Programările sunt închise în perioada de concediu
+                {nextDay.status === "vacation" ? "Programările sunt închise în perioada de concediu" : nextDay.status === "closed" ? "Programările sunt închise temporar" : "Momentan nu mai sunt locuri disponibile"}
               </div>
             ) : (
               <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="lux-action lux-action-soft mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold">

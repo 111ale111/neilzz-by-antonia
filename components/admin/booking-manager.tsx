@@ -19,6 +19,7 @@ const statusOptions = [
   { value: "limited", label: "Locuri limitate" },
   { value: "full", label: "Full" },
   { value: "vacation", label: "Concediu" },
+  { value: "closed", label: "Închis temporar" },
 ];
 
 export function BookingManager() {
@@ -105,7 +106,7 @@ export function BookingManager() {
         className="rounded-3xl border border-white/10 bg-white/5 p-6"
       >
         <h2 className="text-2xl font-semibold">Adaugă zi de booking</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/55">Exemplu recomandat: data „23 martie”, ziua „Luni”, status „Locuri limitate”, notă „2 locuri libere”. Dacă e concediu, alege status „Concediu” și scrie perioada.</p>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-white/55">Exemplu recomandat: data „23 martie”, ziua „Luni”, status „Locuri limitate”, notă „2 locuri libere”. Dacă e concediu, alege status „Concediu” sau „Închis temporar” și scrie perioada/mesajul.</p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-4">
           <input

@@ -14,6 +14,7 @@ import {
   LogOut,
   ShieldCheck,
   Sparkles,
+  Star,
   Trash2,
   Upload,
   UserRound,
@@ -49,6 +50,7 @@ type Reward = {
   reward_number: number;
   status: string;
   issued_at: string;
+  reward_type?: string | null;
 };
 
 type Inspiration = {
@@ -111,10 +113,24 @@ function getRank(visits: number) {
   return rankMap[0];
 }
 
-function discountForRewardNumber(rewardNumber: number) {
-  if (rewardNumber <= 1) return 10;
-  if (rewardNumber === 2) return 25;
-  return 50;
+const rewardMilestones = [
+  { visits: 3, label: "French free", short: "French" },
+  { visits: 5, label: "10% OFF", short: "10%" },
+  { visits: 7, label: "Charms free", short: "Charms" },
+  { visits: 10, label: "25% OFF", short: "25%" },
+  { visits: 15, label: "50% OFF", short: "50%" },
+];
+
+function rewardForNumber(rewardNumber: number) {
+  return rewardMilestones[Math.max(0, Math.min(rewardNumber - 1, rewardMilestones.length - 1))] || rewardMilestones[0];
+}
+
+function rewardForVisits(visits: number) {
+  return rewardMilestones.filter((item) => visits >= item.visits);
+}
+
+function nextRewardForVisits(visits: number) {
+  return rewardMilestones.find((item) => visits < item.visits) || null;
 }
 
 function initials(name?: string | null, email?: string | null) {
@@ -238,7 +254,7 @@ export default function AccountPage() {
     const activeProfilId = (profileData as Profil | null)?.id || user.id;
     const [appointmentRes, rewardRes, inspirationRes, notificationRes, reviewRes] = await Promise.all([
       supabase.from("client_appointments").select("id,appointment_date,appointment_time,status,note,custom_note").eq("client_id", activeProfilId).order("appointment_date", { ascending: false }),
-      supabase.from("client_rewards").select("id,code,reward_number,status,issued_at").eq("client_id", activeProfilId).order("issued_at", { ascending: false }),
+      supabase.from("client_rewards").select("id,code,reward_number,status,issued_at,reward_type").eq("client_id", activeProfilId).order("issued_at", { ascending: false }),
       supabase.from("client_inspirations").select("id,image_url,title,note,source_type,created_at").eq("client_id", activeProfilId).order("created_at", { ascending: false }),
       supabase.from("client_notifications").select("id,title,message,status,created_at,read_at").eq("client_id", activeProfilId).order("created_at", { ascending: false }).limit(10),
       supabase.from("reviews").select("id,rating,text,is_approved,is_featured,photo_url,created_at").eq("user_id", activeProfilId).order("created_at", { ascending: false }),
@@ -386,27 +402,27 @@ export default function AccountPage() {
   async function generateReward() {
     if (!profile) return;
     const visits = Number(profile.visit_count || 0);
-    const earned = Math.floor(visits / 5);
+    const earnedRewards = rewardForVisits(visits);
     const activeCount = rewards.length;
-    if (earned <= activeCount) {
+    if (earnedRewards.length <= activeCount) {
       setMessage("Nu ai reward nou disponibil încă.");
       return;
     }
     const rewardNumber = activeCount + 1;
-    const discount = discountForRewardNumber(rewardNumber);
+    const reward = rewardForNumber(rewardNumber);
     const codeValue = `NB-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
     const { error: rewardError } = await supabase.from("client_rewards").insert({
       client_id: profile.id,
       reward_number: rewardNumber,
       code: codeValue,
-      reward_type: `${discount}% off`,
+      reward_type: reward.label,
       status: "active",
     });
     if (rewardError) {
       setMessage(rewardError.message);
       return;
     }
-    await supabase.from("client_notifications").insert({ client_id: profile.id, title: "Reward disponibil", message: `Ai deblocat Reward #${rewardNumber}: ${discount}% off.`, type: "reward" });
+    await supabase.from("client_notifications").insert({ client_id: profile.id, title: "Reward disponibil", message: `Ai deblocat Reward #${rewardNumber}: ${reward.label}.`, type: "reward" });
     setMessage("Reward card generat.");
     await loadAccount();
   }
@@ -444,7 +460,7 @@ export default function AccountPage() {
 
     ctx.fillStyle = "#fff8f1";
     ctx.font = "124px Georgia";
-    ctx.fillText(`${discountForRewardNumber(reward.reward_number)}% OFF`, 600, 565);
+    ctx.fillText(rewardForNumber(reward.reward_number).label.toUpperCase(), 600, 565);
     ctx.fillStyle = "#f3c5d2";
     ctx.font = "34px Arial";
     ctx.fillText("VOUCHER REWARD", 600, 645);
@@ -669,19 +685,23 @@ export default function AccountPage() {
   const rank = getRank(visitCount);
   const nextRankVizite = rank.next;
   const visitsToNextRank = nextRankVizite ? Math.max(nextRankVizite - visitCount, 0) : 0;
-  const rewardProgress = visitCount % 5;
-  const rewardPercent = Math.min(100, Math.round((rewardProgress / 5) * 100));
-  const rewardsEarned = Math.floor(visitCount / 5);
+  const nextReward = nextRewardForVisits(visitCount);
+  const previousRewardVisits = [...rewardMilestones].reverse().find((item) => visitCount >= item.visits)?.visits || 0;
+  const targetRewardVisits = nextReward?.visits || rewardMilestones[rewardMilestones.length - 1].visits;
+  const rewardRange = Math.max(1, targetRewardVisits - previousRewardVisits);
+  const rewardProgress = nextReward ? Math.max(0, visitCount - previousRewardVisits) : rewardRange;
+  const rewardPercent = nextReward ? Math.min(100, Math.round((rewardProgress / rewardRange) * 100)) : 100;
+  const rewardsEarned = rewardForVisits(visitCount).length;
   const canGenerateReward = rewardsEarned > rewards.length;
   const nextAppointment = appointments.filter((item) => item.status === "upcoming").sort((a, b) => a.appointment_date.localeCompare(b.appointment_date))[0];
   const completionItems = [
-    Boolean(profile?.full_name),
-    Boolean(profile?.avatar_url),
-    Boolean(profile?.is_activated),
-    inspirations.length > 0,
-    notifications.length > 0 || profile?.notification_permission === "granted",
+    { label: "Adaugă numele complet", done: Boolean(profile?.full_name), action: "profile" },
+    { label: "Adaugă poză de profil", done: Boolean(profile?.avatar_url), action: "profile" },
+    { label: "Activează contul cu codul primit", done: Boolean(profile?.is_activated), action: "profile" },
+    { label: "Salvează prima inspirație", done: inspirations.length > 0, action: "inspirations" },
+    { label: "Activează notificările", done: notifications.length > 0 || profile?.notification_permission === "granted", action: "notifications" },
   ];
-  const profileCompletion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
+  const profileCompletion = Math.round((completionItems.filter((item) => item.done).length / completionItems.length) * 100);
 
   if (loading) return <main className="grid min-h-screen place-items-center bg-[var(--bg)] text-[var(--text)]">Se încarcă...</main>;
 
@@ -712,6 +732,44 @@ export default function AccountPage() {
 
         {(message || resetEmailMessage) && (
           <div className="mb-5 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-5 py-4 text-sm text-[var(--rose-strong)]">{message || resetEmailMessage}</div>
+        )}
+
+        {!profile?.is_activated && (
+          <section className="mb-5 rounded-[2rem] border border-[var(--rose)]/35 bg-[color-mix(in_srgb,var(--rose)_10%,var(--panel))] p-5 md:p-6">
+            <p className="lux-label">Cont neverificat</p>
+            <h2 className="mt-3 font-serif text-3xl md:text-4xl">Activează contul</h2>
+            <p className="mt-2 text-sm leading-7 text-[var(--muted)]">Introdu codul privat primit de la Antonia ca să poți lăsa review verificat și să apară statusul de clientă reală.</p>
+            <form onSubmit={activateAccount} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+              <input className="lux-input uppercase tracking-[.18em]" placeholder="NB-ABC-123" value={code} onChange={(e) => setCode(e.target.value)} />
+              <button type="submit" disabled={actionLoading === "activate"} className="lux-action lux-action-soft rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50">{actionLoading === "activate" ? "Se activează..." : "Activează"}</button>
+            </form>
+          </section>
+        )}
+
+        {profileCompletion < 100 && (
+          <section className="mb-5 rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-5 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="lux-label">Profil {profileCompletion}%</p>
+                <h2 className="mt-3 font-serif text-3xl md:text-4xl">Completează profilul</h2>
+                <p className="mt-2 text-sm leading-7 text-[var(--muted)]">Când ajungi la 100%, acest panel dispare automat.</p>
+              </div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-[var(--panel-strong)] md:w-64"><div className="h-full rounded-full bg-[var(--rose)]" style={{ width: `${profileCompletion}%` }} /></div>
+            </div>
+            <div className="mt-5 grid gap-2 md:grid-cols-2">
+              {completionItems.map((item) => (
+                <button key={item.label} type="button" onClick={() => setActiveTab(item.action)} className={item.done ? "rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-left text-sm text-emerald-100" : "rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] p-4 text-left text-sm text-[var(--muted)] hover:text-[var(--text)]"}>
+                  {item.done ? "✓ " : "○ "}{item.label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {profile?.is_activated && (
+          <section className="mb-5 rounded-[2rem] border border-emerald-300/20 bg-emerald-300/10 p-5 text-sm text-emerald-100">
+            <b>Cont verificat.</b> Poți lăsa review verificat și poți folosi sistemul de rewards.
+          </section>
         )}
 
         <header className="lux-panel rounded-[2.7rem] p-6 md:p-8">
@@ -762,10 +820,11 @@ export default function AccountPage() {
                 </section>
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8 xl:col-span-2">
                   <p className="lux-label">Recent updates</p>
-                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  <div className="mt-5 grid gap-3 md:grid-cols-4">
                     <button onClick={() => setActiveTab("appointments")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><CalendarDays className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Programări</p><p className="mt-1 text-sm text-[var(--muted)]">{appointments.length} în cont</p></button>
                     <button onClick={() => setActiveTab("rewards")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><Gift className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Rewards</p><p className="mt-1 text-sm text-[var(--muted)]">{rewards.length} carduri</p></button>
                     <button onClick={() => setActiveTab("inspirations")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><ImagePlus className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Inspirații</p><p className="mt-1 text-sm text-[var(--muted)]">{inspirations.length} poze salvate</p></button>
+                    <button onClick={() => setActiveTab("reviews")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><Star className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Lasă review</p><p className="mt-1 text-sm text-[var(--muted)]">{myReviews.length} trimise</p></button>
                   </div>
                 </section>
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8 xl:col-span-2">
@@ -798,10 +857,10 @@ export default function AccountPage() {
 
             {activeTab === "rewards" && (
               <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
-                <p className="lux-label">Rewards</p><h2 className="editorial-title mt-3 text-5xl">Progres reward</h2><p className="mt-4 text-sm text-[var(--muted)]">Încă {5 - rewardProgress === 5 ? 5 : 5 - rewardProgress} vizite până la următorul voucher.</p>
-                <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-center"><div className="relative grid h-32 w-32 place-items-center rounded-full" style={{ background: `conic-gradient(var(--rose-strong) ${rewardPercent}%, rgba(255,255,255,.08) 0)` }}><div className="grid h-[6.6rem] w-[6.6rem] place-items-center rounded-full bg-[var(--bg)] text-3xl font-semibold">{rewardPercent}%</div></div><div className="flex-1"><div className="h-3 overflow-hidden rounded-full bg-[var(--panel)]"><div className="h-full rounded-full bg-[var(--rose)]" style={{ width: `${rewardPercent}%` }} /></div><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="lux-label">5 vizite</p><p className="mt-2 font-serif text-3xl">10% off</p></div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="lux-label">10 vizite</p><p className="mt-2 font-serif text-3xl">25% off</p></div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="lux-label">15 vizite</p><p className="mt-2 font-serif text-3xl">50% off</p></div></div></div></div>
+                <p className="lux-label">Rewards</p><h2 className="editorial-title mt-3 text-5xl">Progres reward</h2><p className="mt-4 text-sm text-[var(--muted)]">{nextReward ? `Încă ${Math.max(nextReward.visits - visitCount, 0)} vizite până la ${nextReward.label}.` : "Ai atins toate milestone-urile de reward."}</p>
+                <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-center"><div className="relative grid h-32 w-32 place-items-center rounded-full" style={{ background: `conic-gradient(var(--rose-strong) ${rewardPercent}%, rgba(255,255,255,.08) 0)` }}><div className="grid h-[6.6rem] w-[6.6rem] place-items-center rounded-full bg-[var(--bg)] text-3xl font-semibold">{rewardPercent}%</div></div><div className="flex-1"><div className="h-3 overflow-hidden rounded-full bg-[var(--panel)]"><div className="h-full rounded-full bg-[var(--rose)]" style={{ width: `${rewardPercent}%` }} /></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{rewardMilestones.map((item) => <div key={item.visits} className={visitCount >= item.visits ? "rounded-2xl border border-[var(--rose)]/40 bg-[var(--panel-strong)] p-4" : "rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"}><p className="lux-label">{item.visits} vizite</p><p className="mt-2 font-serif text-3xl">{item.label}</p></div>)}</div></div></div>
                 <button onClick={generateReward} disabled={!canGenerateReward} className="lux-action lux-action-soft mt-6 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-45">Generează voucher</button>
-                <div className="mt-5 grid gap-3 md:grid-cols-2">{rewards.map((reward) => <div key={reward.id} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="text-xs uppercase tracking-[.26em] text-[var(--faint)]">Reward #{reward.reward_number}</p><p className="mt-2 font-semibold">{reward.code}</p><p className="mt-1 text-sm text-[var(--muted)]">{reward.status}</p><button onClick={() => downloadVoucher(reward)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm"><Download className="h-4 w-4" /> Descarcă PNG</button></div>)}</div>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">{rewards.map((reward) => <div key={reward.id} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="text-xs uppercase tracking-[.26em] text-[var(--faint)]">Reward #{reward.reward_number}</p><p className="mt-2 font-semibold">{reward.code}</p><p className="mt-1 text-sm text-[var(--muted)]">{reward.status} · {rewardForNumber(reward.reward_number).label}</p><button onClick={() => downloadVoucher(reward)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm"><Download className="h-4 w-4" /> Descarcă PNG</button></div>)}</div>
               </section>
             )}
 
