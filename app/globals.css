@@ -400,3 +400,20 @@ html[data-theme="light"] .neilzz-register-pill * { color: #fff8f1 !important; }
     opacity: .34;
   }
 }
+
+/* Stage 16: Safari mobile hero hard fix */
+@media (max-width: 767px) {
+  main {
+    overflow-x: hidden;
+  }
+
+  header.fixed + section,
+  header.fixed ~ section:first-of-type {
+    scroll-margin-top: 8rem;
+  }
+
+  .editorial-title {
+    overflow: visible;
+    text-wrap: balance;
+  }
+}

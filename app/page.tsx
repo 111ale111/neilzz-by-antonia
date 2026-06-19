@@ -180,6 +180,90 @@ function ThemeToggle() {
   );
 }
 
+
+type MobileRole = "loading" | "guest" | "client" | "admin";
+
+function MobileBottomNav({ instagramUrl }: { instagramUrl: string }) {
+  const [role, setRole] = useState<MobileRole>("loading");
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+
+    async function loadRole() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+      if (!user) {
+        setRole("guest");
+        return;
+      }
+
+      let { data: profile } = await supabase.from("profiles").select("role,email").eq("id", user.id).maybeSingle();
+      if (!profile && user.email) {
+        const retry = await supabase.from("profiles").select("role,email").ilike("email", user.email).maybeSingle();
+        profile = retry.data;
+      }
+
+      const adminList = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAIL || "")
+        .split(",")
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean);
+      const metaRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role.toLowerCase() : "";
+      const email = (user.email || profile?.email || "").toLowerCase();
+      const isAdmin = profile?.role === "admin" || metaRole === "admin" || adminList.includes(email);
+      setRole(isAdmin ? "admin" : "client");
+    }
+
+    loadRole();
+    const { data } = supabase.auth.onAuthStateChange(() => window.setTimeout(loadRole, 0));
+    const onFocus = () => loadRole();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
+  const baseClass = "rounded-full px-2 py-2 text-center transition active:scale-95";
+  const mutedClass = `${baseClass} text-[var(--muted)]`;
+  const strongClass = `${baseClass} font-semibold text-[var(--text)]`;
+
+  return (
+    <nav className="neilzz-mobile-nav fixed bottom-[calc(.85rem+env(safe-area-inset-bottom))] left-1/2 z-50 grid w-[calc(100%-1.25rem)] max-w-md -translate-x-1/2 grid-cols-5 items-center rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_84%,transparent)] px-2 py-2 text-[11px] font-medium shadow-[0_20px_80px_rgba(0,0,0,.45)] backdrop-blur-2xl md:hidden">
+      {role === "admin" ? (
+        <>
+          <Link href="/" className={mutedClass}>Home</Link>
+          <Link href="/gallery" className={mutedClass}>Galerie</Link>
+          <Link href="/dashboard" className={strongClass}>Dashboard</Link>
+          <Link href="/account" className={mutedClass}>Account</Link>
+          <a href="/auth/logout" className={strongClass}>Logout</a>
+        </>
+      ) : role === "client" ? (
+        <>
+          <Link href="/" className={mutedClass}>Home</Link>
+          <Link href="/gallery" className={mutedClass}>Galerie</Link>
+          <Link href="/booking" className={mutedClass}>Booking</Link>
+          <Link href="/account" className={strongClass}>Account</Link>
+          <a href="/auth/logout" className={strongClass}>Logout</a>
+        </>
+      ) : (
+        <>
+          <Link href="/" className={mutedClass}>Home</Link>
+          <Link href="/gallery" className={mutedClass}>Galerie</Link>
+          <Link href="/booking" className={mutedClass}>Booking</Link>
+          <Link href="/login" className={strongClass}>Login</Link>
+          <Link href="/register" className="neilzz-register-pill rounded-full px-2 py-2 text-center text-[11px] font-extrabold transition active:scale-95">Register</Link>
+        </>
+      )}
+    </nav>
+  );
+}
+
 function SparkleField() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -281,7 +365,7 @@ export default function Home() {
   const reviewCards = featuredReviews.length > 0 ? featuredReviews : reviewPreview;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
+    <main className="relative min-h-screen overflow-x-hidden bg-[var(--bg)] text-[var(--text)]">
       <div className="lux-noise" />
 
       <div className="pointer-events-none fixed inset-0 z-0">
@@ -292,10 +376,10 @@ export default function Home() {
 
       <SiteHeader />
 
-      <section className="relative z-10 min-h-[100svh] overflow-visible px-5 pb-28 pt-24 md:min-h-screen md:px-8 md:pb-0 md:pt-28">
+      <section className="relative z-10 min-h-[100svh] overflow-visible px-5 pb-32 pt-[8.75rem] md:min-h-screen md:px-8 md:pb-0 md:pt-28">
         <SparkleField />
-        <div className="mx-auto grid min-h-[calc(100svh-6rem)] max-w-[1500px] items-center gap-10 md:min-h-[calc(100vh-6rem)] lg:grid-cols-[0.82fr_1.18fr]">
-          <motion.div className="relative z-10 max-w-3xl pt-8 lg:pt-0 lg:[transform:var(--hero-lift)]">
+        <div className="mx-auto grid min-h-0 max-w-[1500px] items-start gap-10 md:min-h-[calc(100vh-6rem)] md:items-center lg:grid-cols-[0.82fr_1.18fr]">
+          <motion.div className="relative z-10 max-w-3xl pt-0 lg:pt-0 lg:[transform:var(--hero-lift)]">
             <motion.div
               initial={false}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -309,7 +393,7 @@ export default function Home() {
               initial={false}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="editorial-title mt-8 max-w-3xl text-[11.2vw] leading-[0.9] sm:text-[4.05rem] lg:text-[4.75rem] xl:text-[5.25rem]"
+              className="editorial-title mt-7 max-w-3xl text-[3.65rem] leading-[0.88] sm:text-[4.05rem] lg:text-[4.75rem] xl:text-[5.25rem]"
             >
               {homepageContent.titleLine1}
               <br />
@@ -346,7 +430,7 @@ export default function Home() {
             initial={{ opacity: 0, x: 54, filter: "blur(18px)" }}
             animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
             transition={{ duration: 1.05, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-            className="relative min-h-[430px] pb-8 sm:min-h-[580px] lg:min-h-[650px]"
+            className="relative hidden min-h-[430px] pb-8 sm:min-h-[580px] lg:block lg:min-h-[650px]"
           >
             <div className="absolute inset-0 rounded-[3rem] bg-[var(--rose)]/10 blur-[110px]" />
             <div className="ribbon absolute -left-12 top-12 h-20 w-[120%] rounded-full bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--rose)_20%,transparent),transparent)] blur-2xl" />
@@ -659,13 +743,7 @@ export default function Home() {
         </div>
       </footer>
 
-      <nav className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_78%,transparent)] px-3 py-3 text-xs font-medium text-[var(--muted)] backdrop-blur-2xl md:hidden">
-        <a href="/gallery">Galerie</a>
-        <a href="/reviews">Review-uri</a>
-        <a href="/booking">Booking</a>
-        <PrivateAccessLink>Account</PrivateAccessLink>
-        <a href={homepageContent.instagramUrl || INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">Instagram</a>
-      </nav>
+      <MobileBottomNav instagramUrl={homepageContent.instagramUrl || INSTAGRAM_URL} />
     </main>
   );
 }

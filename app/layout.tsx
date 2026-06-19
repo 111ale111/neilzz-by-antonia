@@ -6,7 +6,14 @@ import { ThemeEngineRuntime } from "@/components/theme-engine-runtime";
 export const metadata: Metadata = {
   title: "neilzzbyanto",
   description: "Manichiură premium, galerie luxury și programări private prin Instagram.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=18",
+  icons: {
+    icon: [
+      { url: "/icon-192.png?v=18", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png?v=18", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png?v=18", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     title: "neilzzbyanto",

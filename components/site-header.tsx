@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
+import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
@@ -28,6 +29,7 @@ export function SiteHeader() {
   const { scrollY } = useScroll();
   const headerOpacity = useTransform(scrollY, [0, 80], [0.72, 1]);
   const [role, setRole] = React.useState<HeaderRole>("loading");
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -112,6 +114,14 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2 md:gap-3">
           <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((value) => !value)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] text-[var(--text)] backdrop-blur-xl md:hidden"
+            aria-label="Deschide meniul"
+          >
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
 
           {role === "guest" && (
             <>
@@ -123,7 +133,7 @@ export function SiteHeader() {
           {role === "client" && (
             <>
               <Link href="/account" className="hidden items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--panel-strong)] sm:inline-flex">Account</Link>
-              <a href="/auth/logout" className="inline-flex items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15">Logout</a>
+              <a href="/auth/logout" className="hidden items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15 sm:inline-flex">Logout</a>
             </>
           )}
 
@@ -131,11 +141,41 @@ export function SiteHeader() {
             <>
               <Link href="/dashboard" className="hidden items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15 sm:inline-flex">Dashboard</Link>
               <Link href="/account" className="hidden items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--panel-strong)] lg:inline-flex">Account</Link>
-              <a href="/auth/logout" className="inline-flex items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15">Logout</a>
+              <a href="/auth/logout" className="hidden items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15 sm:inline-flex">Logout</a>
             </>
           )}
         </div>
       </div>
+      {mobileMenuOpen && (
+        <div className="relative mx-auto mt-1 w-[calc(100%-1.5rem)] max-w-md overflow-hidden rounded-[1.7rem] border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] p-3 shadow-[0_28px_90px_rgba(0,0,0,.55)] backdrop-blur-2xl md:hidden">
+          <div className="grid gap-2 text-sm">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href} onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-[var(--muted)] transition hover:bg-[var(--panel)] hover:text-[var(--text)]">
+                {link.label}
+              </Link>
+            ))}
+            <div className="my-1 h-px bg-[var(--line)]" />
+            {role === "admin" ? (
+              <>
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 font-semibold text-[var(--rose-strong)]">Dashboard</Link>
+                <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-[var(--text)]">Account</Link>
+                <a href="/auth/logout" className="rounded-2xl px-4 py-3 font-semibold text-[var(--rose-strong)]">Logout</a>
+              </>
+            ) : role === "client" ? (
+              <>
+                <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 font-semibold text-[var(--text)]">Account</Link>
+                <a href="/auth/logout" className="rounded-2xl px-4 py-3 font-semibold text-[var(--rose-strong)]">Logout</a>
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-center font-semibold text-[var(--text)]">Login</Link>
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="neilzz-register-pill rounded-full px-4 py-3 text-center font-extrabold">Register</Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </header>
   );
 }
