@@ -1,0 +1,141 @@
+"use client";
+
+import { motion, useScroll, useTransform } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
+import * as React from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { createClient } from "@/lib/supabase/client";
+
+const navLinks = [
+  { href: "/", label: "Home" },
+  { href: "/gallery", label: "Galerie" },
+  { href: "/reviews", label: "Review-uri" },
+  { href: "/booking", label: "Booking" },
+  { href: "/about", label: "About" },
+];
+
+type HeaderRole = "loading" | "guest" | "client" | "admin";
+
+function adminEmails() {
+  return (process.env.NEXT_PUBLIC_ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAIL || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function SiteHeader() {
+  const { scrollY } = useScroll();
+  const headerOpacity = useTransform(scrollY, [0, 80], [0.72, 1]);
+  const [role, setRole] = React.useState<HeaderRole>("loading");
+
+  React.useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+
+    async function loadAuthState() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (!user) {
+        setRole("guest");
+        return;
+      }
+
+      let { data: profile } = await supabase
+        .from("profiles")
+        .select("role,email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile && user.email) {
+        const retry = await supabase
+          .from("profiles")
+          .select("role,email")
+          .ilike("email", user.email)
+          .maybeSingle();
+        profile = retry.data;
+      }
+
+      if (!active) return;
+      const metadataRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role.toLowerCase() : "";
+      const email = (user.email || profile?.email || "").toLowerCase();
+      const isAdmin = profile?.role === "admin" || metadataRole === "admin" || adminEmails().includes(email);
+      setRole(isAdmin ? "admin" : "client");
+    }
+
+    loadAuthState();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      window.setTimeout(loadAuthState, 0);
+    });
+
+    const onFocus = () => loadAuthState();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  return (
+    <header className="fixed inset-x-0 top-0 z-50">
+      <motion.div
+        style={{ opacity: headerOpacity }}
+        className="absolute inset-0 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_78%,transparent)] backdrop-blur-2xl"
+        aria-hidden="true"
+      />
+      <div className="relative mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
+        <Link href="/" className="flex shrink-0 items-center">
+          <Image
+            src="/neilzz-logo-light.png"
+            alt="neilzzbyanto"
+            width={240}
+            height={112}
+            priority
+            className="h-14 w-auto object-contain drop-shadow-[0_0_20px_rgba(247,192,207,0.24)] md:h-16"
+          />
+        </Link>
+
+        <nav className="hidden items-center gap-7 text-sm text-[var(--muted)] md:flex">
+          {navLinks.map((link) => (
+            <Link key={link.href} href={link.href} className="transition hover:text-[var(--text)]">
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2 md:gap-3">
+          <ThemeToggle />
+
+          {role === "guest" && (
+            <>
+              <Link href="/login" className="hidden items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--panel-strong)] sm:inline-flex">Login</Link>
+              <Link href="/register" className="neilzz-register-pill hidden min-w-[116px] items-center justify-center rounded-full border px-5 py-2 text-sm font-extrabold shadow-[0_0_22px_rgba(255,242,234,0.16)] transition hover:opacity-90 sm:inline-flex"><span>Register</span></Link>
+            </>
+          )}
+
+          {role === "client" && (
+            <>
+              <Link href="/account" className="hidden items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--panel-strong)] sm:inline-flex">Account</Link>
+              <a href="/auth/logout" className="inline-flex items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15">Logout</a>
+            </>
+          )}
+
+          {role === "admin" && (
+            <>
+              <Link href="/dashboard" className="hidden items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15 sm:inline-flex">Dashboard</Link>
+              <Link href="/account" className="hidden items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:bg-[var(--panel-strong)] lg:inline-flex">Account</Link>
+              <a href="/auth/logout" className="inline-flex items-center justify-center rounded-full border border-[#d9a0b1]/40 bg-[#d9a0b1]/10 px-4 py-2 text-sm font-semibold text-[#f3c5d2] transition hover:bg-[#d9a0b1]/15">Logout</a>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

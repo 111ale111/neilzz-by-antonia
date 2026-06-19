@@ -1,0 +1,492 @@
+"use client";
+
+import { motion, useScroll, useTransform } from "framer-motion";
+import { ArrowUpRight, CalendarDays, Camera, CheckCircle2, Moon, Star, Sun } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+const INSTAGRAM_URL = "https://instagram.com/neilzz_by.anto";
+
+type GalleryImage = {
+  id: string;
+  title: string | null;
+  image_url: string;
+};
+
+type BookingDay = {
+  id: string;
+  date_label: string;
+  day_label: string | null;
+  status: string;
+  note: string | null;
+  position: number | null;
+};
+
+const fallbackGallery: GalleryImage[] = [
+  { id: "fallback-1", title: "Signature Finish", image_url: "https://picsum.photos/seed/neilzz-v4-1/1300/1700" },
+  { id: "fallback-2", title: "Soft Detail", image_url: "https://picsum.photos/seed/neilzz-v4-2/1300/1700" },
+  { id: "fallback-3", title: "Gloss Set", image_url: "https://picsum.photos/seed/neilzz-v4-3/1300/1700" },
+  { id: "fallback-4", title: "Clean Shape", image_url: "https://picsum.photos/seed/neilzz-v4-4/1300/1700" },
+];
+
+const fallbackBooking: BookingDay[] = [
+  { id: "b1", date_label: "23 martie", day_label: "Luni", status: "full", note: "Full", position: 1 },
+  { id: "b2", date_label: "24 martie", day_label: "Marți", status: "available", note: "1 loc liber", position: 2 },
+  { id: "b3", date_label: "25 martie", day_label: "Miercuri", status: "vacation", note: "Concediu", position: 3 },
+];
+
+const reviewPreview = [
+  "Finish curat, elegant și foarte atent lucrat.",
+  "Exact vibe-ul pe care îl voiam: feminin, premium și rezistent.",
+  "Se vede atenția la fiecare detaliu.",
+];
+
+function statusLabel(status: string, note?: string | null) {
+  if (note) return note;
+  if (status === "full") return "Full";
+  if (status === "vacation") return "Concediu";
+  if (status === "limited") return "Locuri limitate";
+  return "Disponibil";
+}
+
+function statusClass(status: string) {
+  if (status === "full") return "border-red-300/20 bg-red-300/10 text-red-100";
+  if (status === "vacation") return "border-amber-300/20 bg-amber-300/10 text-amber-100";
+  if (status === "limited") return "border-[#f1a2b7]/25 bg-[#f1a2b7]/10 text-[#ffd0dc]";
+  return "border-emerald-300/20 bg-emerald-300/10 text-emerald-100";
+}
+
+function Reveal({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 34, filter: "blur(14px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      viewport={{ once: true, margin: "-90px" }}
+      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function Button({
+  href,
+  children,
+  solid = false,
+}: {
+  href: string;
+  children: React.ReactNode;
+  solid?: boolean;
+}) {
+  return (
+    <motion.a
+      href={href}
+      target={href.startsWith("http") ? "_blank" : undefined}
+      rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+      whileHover={{ y: -3, scale: 1.025 }}
+      whileTap={{ scale: 0.98 }}
+      className={
+        solid
+          ? "group inline-flex items-center justify-center gap-2 rounded-full bg-[var(--text)] px-7 py-4 text-sm font-semibold text-[var(--bg)] transition"
+          : "group inline-flex items-center justify-center gap-2 rounded-full border border-[var(--line)] bg-[var(--panel)] px-7 py-4 text-sm font-semibold text-[var(--text)] backdrop-blur-xl transition hover:bg-[var(--panel-strong)]"
+      }
+    >
+      {children}
+      <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+    </motion.a>
+  );
+}
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("neilzz-theme") || "dark";
+    setTheme(saved);
+    document.documentElement.dataset.theme = saved;
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    window.localStorage.setItem("neilzz-theme", next);
+  }
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="rounded-full border border-[var(--line)] bg-[var(--panel)] p-3 text-[var(--text)] backdrop-blur-xl transition hover:bg-[var(--panel-strong)]"
+      aria-label="Toggle theme"
+    >
+      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
+}
+
+export default function Home() {
+  const [gallery, setGallery] = useState<GalleryImage[]>([]);
+  const [bookingDays, setBookingDays] = useState<BookingDay[]>(fallbackBooking);
+
+  const { scrollYProgress } = useScroll();
+  const heroLift = useTransform(scrollYProgress, [0, 0.35], [0, -120]);
+  const imageScale = useTransform(scrollYProgress, [0, 0.35], [1, 1.07]);
+  const veilOpacity = useTransform(scrollYProgress, [0, 0.25], [0.15, 0.62]);
+
+  useEffect(() => {
+    async function loadData() {
+      const supabase = createClient();
+
+      const { data: galleryData } = await supabase
+        .from("gallery_images")
+        .select("id,title,image_url")
+        .eq("is_visible", true)
+        .order("created_at", { ascending: false })
+        .limit(8);
+
+      if (galleryData && galleryData.length > 0) {
+        setGallery(galleryData);
+      }
+
+      const { data: bookingData } = await supabase
+        .from("booking_days")
+        .select("id,date_label,day_label,status,note,position")
+        .eq("is_visible", true)
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (bookingData && bookingData.length > 0) {
+        setBookingDays(bookingData);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  const images = useMemo(() => (gallery.length > 0 ? gallery : fallbackGallery), [gallery]);
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]">
+      <div className="lux-noise" />
+
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="soft-pulse absolute left-[12%] top-[10%] h-[30rem] w-[30rem] rounded-full bg-[var(--wine)]/45 blur-[150px]" />
+        <div className="soft-pulse absolute right-[10%] top-[18%] h-[26rem] w-[26rem] rounded-full bg-[var(--rose)]/18 blur-[130px]" />
+        <div className="absolute inset-x-0 top-0 h-px rose-line" />
+      </div>
+
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-5 md:px-8">
+          <Link href="/" className="leading-none">
+            <div className="text-2xl font-semibold tracking-[0.42em]">NEILZZ</div>
+            <div className="mt-2 text-[0.58rem] uppercase tracking-[0.55em] text-[var(--faint)]">
+              by Antonia
+            </div>
+          </Link>
+
+          <nav className="hidden items-center gap-10 text-sm text-[var(--muted)] md:flex">
+            <Link className="transition hover:text-[var(--text)]" href="/gallery">Gallery</Link>
+            <Link className="transition hover:text-[var(--text)]" href="/reviews">Reviews</Link>
+            <Link className="transition hover:text-[var(--text)]" href="/booking">Booking</Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-semibold text-[var(--text)] backdrop-blur-xl transition hover:bg-[var(--panel-strong)]"
+            >
+              Instagram
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <section className="relative z-10 min-h-screen px-5 pt-28 md:px-8">
+        <div className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-[1500px] items-center gap-12 lg:grid-cols-[.92fr_1.08fr]">
+          <motion.div style={{ y: heroLift }} className="relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 22, filter: "blur(12px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.8 }}
+              className="inline-flex rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-[0.66rem] font-semibold uppercase tracking-[0.42em] text-[var(--rose-strong)] backdrop-blur-xl"
+            >
+              Private nail atelier
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 52, filter: "blur(18px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 1.05, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              className="editorial-title mt-10 max-w-5xl text-[22vw] leading-[0.72] sm:text-[9.5rem] lg:text-[11rem]"
+            >
+              Details make the art.
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 26 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.75, delay: 0.38 }}
+              className="mt-8 max-w-xl text-lg leading-9 text-[var(--muted)]"
+            >
+              A dark-luxury nail experience built around clean shapes, quiet detail
+              and a flawless finish.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 26 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.75, delay: 0.55 }}
+              className="mt-10 flex flex-col gap-3 sm:flex-row"
+            >
+              <Button href="/gallery" solid>Explore gallery</Button>
+              <Button href="/booking">
+                <CalendarDays className="h-4 w-4" />
+                Booking
+              </Button>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 70, filter: "blur(20px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            transition={{ duration: 1.1, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="relative min-h-[620px]"
+          >
+            <div className="absolute inset-0 rounded-[3rem] bg-[var(--rose)]/14 blur-[110px]" />
+            <div className="ribbon absolute -left-10 top-10 h-24 w-[120%] rounded-full bg-[linear-gradient(90deg,transparent,color-mix(in_srgb,var(--rose)_22%,transparent),transparent)] blur-2xl" />
+
+            <motion.div
+              style={{ scale: imageScale }}
+              className="absolute left-[0%] top-[4%] w-[66%] overflow-hidden rounded-[2.2rem] border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_45px_130px_var(--shadow)] backdrop-blur-2xl"
+            >
+              <div className="relative aspect-[4/5] overflow-hidden rounded-[1.7rem] bg-[#10060b]">
+                <Image
+                  src={images[0].image_url}
+                  alt={images[0].title || "NEILZZ"}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 38vw, 80vw"
+                  className="object-cover opacity-85 saturate-[0.9]"
+                />
+                <motion.div style={{ opacity: veilOpacity }} className="absolute inset-0 bg-black" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                <div className="absolute bottom-6 left-6">
+                  <p className="text-[0.62rem] uppercase tracking-[0.45em] text-white/45">featured</p>
+                  <p className="mt-2 font-serif text-4xl text-white">{images[0].title || "Signature finish"}</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -18, 0] }}
+              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute right-[0%] top-[19%] w-[44%] overflow-hidden rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_35px_110px_var(--shadow)] backdrop-blur-2xl"
+            >
+              <div className="relative aspect-[3/4] overflow-hidden rounded-[1.45rem] bg-[#10060b]">
+                <Image
+                  src={images[1]?.image_url || images[0].image_url}
+                  alt={images[1]?.title || "NEILZZ"}
+                  fill
+                  sizes="(min-width: 1024px) 25vw, 65vw"
+                  className="object-cover opacity-84 saturate-[0.9]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              </div>
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, 18, 0] }}
+              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute bottom-[2%] left-[35%] w-[52%] overflow-hidden rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-3 shadow-[0_35px_110px_var(--shadow)] backdrop-blur-2xl"
+            >
+              <div className="relative aspect-[5/3] overflow-hidden rounded-[1.45rem] bg-[#10060b]">
+                <Image
+                  src={images[2]?.image_url || images[0].image_url}
+                  alt={images[2]?.title || "NEILZZ"}
+                  fill
+                  sizes="(min-width: 1024px) 30vw, 75vw"
+                  className="object-cover opacity-84 saturate-[0.9]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-5 py-20 md:px-8">
+        <Reveal>
+          <div className="lux-panel mx-auto max-w-[1500px] rounded-[2.7rem] p-7 md:p-12">
+            <div className="mb-8 flex items-center gap-3">
+              <span className="h-2 w-2 rounded-full bg-[var(--rose)] glow-dot" />
+              <p className="text-xs font-semibold uppercase tracking-[0.42em] text-[var(--rose-strong)]">
+                Booking status
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {bookingDays.slice(0, 3).map((day, index) => (
+                <motion.div
+                  key={day.id}
+                  initial={{ opacity: 0, y: 18 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.08 }}
+                  className="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6"
+                >
+                  <p className="text-sm uppercase tracking-[0.28em] text-[var(--faint)]">
+                    {day.day_label || "Zi"}
+                  </p>
+                  <h2 className="mt-3 font-serif text-4xl">{day.date_label}</h2>
+                  <span className={`mt-5 inline-flex rounded-full border px-4 py-2 text-sm font-semibold ${statusClass(day.status)}`}>
+                    {statusLabel(day.status, day.note)}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      <section className="relative z-10 overflow-hidden border-y border-[var(--line)] py-8">
+        <div className="marquee flex w-[200%] gap-10 text-[12vw] font-serif leading-none tracking-[-0.08em] text-[var(--text)]/[0.055] md:text-[8rem]">
+          <span>NEILZZ · CLEAN SHAPES · QUIET LUXURY · </span>
+          <span>NEILZZ · CLEAN SHAPES · QUIET LUXURY · </span>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-5 py-24 md:px-8">
+        <div className="mx-auto max-w-[1500px]">
+          <Reveal className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.48em] text-[var(--rose-strong)]">Gallery preview</p>
+              <h2 className="editorial-title mt-5 max-w-4xl text-6xl leading-[0.86] md:text-8xl">
+                Work first.
+                <br />
+                Words second.
+              </h2>
+            </div>
+            <Button href="/gallery">Open full gallery</Button>
+          </Reveal>
+
+          <div className="mt-14 grid gap-4 md:grid-cols-4">
+            {images.slice(0, 4).map((item, index) => (
+              <Reveal key={item.id} delay={index * 0.08}>
+                <motion.a
+                  href="/gallery"
+                  whileHover={{ y: -10 }}
+                  className="group block overflow-hidden rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-3 backdrop-blur-2xl"
+                >
+                  <div className={index % 2 === 0 ? "relative aspect-[3/4] overflow-hidden rounded-[1.45rem]" : "relative aspect-[3/5] overflow-hidden rounded-[1.45rem]"}>
+                    <Image
+                      src={item.image_url}
+                      alt={item.title || "NEILZZ"}
+                      fill
+                      sizes="(min-width: 1024px) 25vw, 80vw"
+                      className="object-cover opacity-86 saturate-[0.92] transition duration-1000 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
+                    <div className="absolute bottom-5 left-5 right-5">
+                      <p className="font-serif text-2xl text-white">{item.title || "NEILZZ set"}</p>
+                    </div>
+                  </div>
+                </motion.a>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-5 py-24 md:px-8">
+        <div className="mx-auto max-w-[1500px]">
+          <Reveal className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.48em] text-[var(--rose-strong)]">Reviews</p>
+              <h2 className="editorial-title mt-5 max-w-4xl text-6xl leading-[0.86] md:text-8xl">
+                Real words.
+                <br />
+                No performance.
+              </h2>
+            </div>
+            <Button href="/reviews">Read all</Button>
+          </Reveal>
+
+          <div className="mt-14 grid gap-4 md:grid-cols-3">
+            {reviewPreview.map((text, index) => (
+              <Reveal key={text} delay={index * 0.08}>
+                <article className="lux-panel h-full rounded-[2.2rem] p-7">
+                  <div className="flex gap-1 text-[var(--rose-strong)]">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} className="h-4 w-4 fill-current" />
+                    ))}
+                  </div>
+                  <p className="mt-8 text-xl leading-9 text-[var(--muted)]">“{text}”</p>
+                  <div className="mt-10 inline-flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-[var(--faint)]">
+                    <CheckCircle2 className="h-4 w-4" />
+                    verified client
+                  </div>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative z-10 px-5 py-24 md:px-8">
+        <Reveal>
+          <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[3rem] border border-[var(--line)] bg-[var(--panel)] p-8 shadow-[0_50px_150px_var(--shadow)] backdrop-blur-2xl md:p-16">
+            <div className="absolute" />
+            <div className="grid gap-10 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.48em] text-[var(--rose-strong)]">Booking</p>
+                <h2 className="editorial-title mt-6 max-w-5xl text-6xl leading-[0.86] md:text-8xl">
+                  Send the idea.
+                  <br />
+                  Leave with the finish.
+                </h2>
+              </div>
+              <Button href={INSTAGRAM_URL} solid>
+                <Camera className="h-4 w-4" />
+                Instagram
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      <footer className="relative z-10 border-t border-[var(--line)] px-5 py-10 text-center md:px-8">
+        <p className="text-xl font-semibold tracking-[0.42em]">NEILZZ</p>
+        <p className="mt-2 text-xs uppercase tracking-[0.55em] text-[var(--faint)]">by Antonia</p>
+
+        <div className="mt-7 flex items-center justify-center gap-6 text-xs text-[var(--faint)]">
+          <a className="transition hover:text-[var(--text)]" href="/gallery">Gallery</a>
+          <a className="transition hover:text-[var(--text)]" href="/reviews">Reviews</a>
+          <a className="transition hover:text-[var(--text)]" href="/booking">Booking</a>
+          <a className="transition hover:text-[var(--text)]" href="/login">Private access</a>
+        </div>
+      </footer>
+
+      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-around rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_72%,transparent)] px-3 py-3 text-xs font-medium text-[var(--muted)] backdrop-blur-2xl md:hidden">
+        <a href="/gallery">Gallery</a>
+        <a href="/reviews">Reviews</a>
+        <a href="/booking">Booking</a>
+        <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">Instagram</a>
+      </nav>
+    </main>
+  );
+}
