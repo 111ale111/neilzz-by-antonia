@@ -621,7 +621,6 @@ export default function AccountPage() {
           icon: "/icon-192.png?v=19",
           badge: "/icon-192.png?v=19",
           tag: `neilzz-test-${Date.now()}`,
-          renotify: true,
         });
       } else {
         new Notification("Test neilzzbyanto", { body: "Notificările simple merg." });
@@ -654,7 +653,6 @@ export default function AccountPage() {
           icon: "/icon-192.png?v=19",
           badge: "/icon-192.png?v=19",
           tag: `neilzz-delayed-${Date.now()}`,
-          renotify: true,
         });
       }, 8000);
     } catch (error) {
