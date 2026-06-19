@@ -576,6 +576,13 @@ export default function AccountPage() {
     setActionLoading(null);
   }
 
+  async function getNotificationRegistration() {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+    const registration = await navigator.serviceWorker.register("/sw.js?v=19", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    return registration;
+  }
+
   async function enableNotificări() {
     if (!profile) return;
     setActionLoading("notifications");
@@ -583,11 +590,10 @@ export default function AccountPage() {
     try {
       if (typeof window !== "undefined" && "Notification" in window) {
         permission = await Notification.requestPermission();
-        if ("serviceWorker" in navigator) await navigator.serviceWorker.register("/sw.js?v=18");
-        if (permission === "granted") new Notification("neilzzbyanto", { body: "Notificările sunt active." });
+        await getNotificationRegistration();
       }
       const { error } = await supabase.from("profiles").update({ notification_permission: permission }).eq("id", profile.id);
-      setMessage(error ? error.message : permission === "granted" ? "Notificările au fost activate." : "Notificările nu sunt active în browser.");
+      setMessage(error ? error.message : permission === "granted" ? "Notificările sunt permise pe acest dispozitiv. Apasă Test 8 secunde și blochează telefonul." : "Notificările nu sunt active în browser.");
       await loadAccount();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Notificările nu au putut fi activate.");
@@ -608,19 +614,51 @@ export default function AccountPage() {
         setMessage("Permisiunea pentru notificări nu este activă.");
         return;
       }
-      const registration = "serviceWorker" in navigator ? await navigator.serviceWorker.register("/sw.js?v=18") : null;
+      const registration = await getNotificationRegistration();
       if (registration?.showNotification) {
         await registration.showNotification("Test neilzzbyanto", {
-          body: "Dacă vezi asta, notificările simple merg pe acest dispozitiv.",
-          icon: "/icon-192.png?v=18",
-          badge: "/icon-192.png?v=18",
+          body: "Notificările simple merg pe acest dispozitiv.",
+          icon: "/icon-192.png?v=19",
+          badge: "/icon-192.png?v=19",
+          tag: `neilzz-test-${Date.now()}`,
+          renotify: true,
         });
       } else {
-        new Notification("Test neilzzbyanto", { body: "Dacă vezi asta, notificările simple merg." });
+        new Notification("Test neilzzbyanto", { body: "Notificările simple merg." });
       }
-      setMessage("Notificare test trimisă.");
+      setMessage("Notificare test trimisă. Pe iPhone poate apărea în Notification Center dacă aplicația este deschisă.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Notificarea test nu a putut fi trimisă.");
+    }
+  }
+
+  async function testDelayedNotification() {
+    setMessage("");
+    try {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        setMessage("Browserul nu suportă notificări.");
+        return;
+      }
+      let permission = Notification.permission;
+      if (permission !== "granted") permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setMessage("Permisiunea pentru notificări nu este activă.");
+        return;
+      }
+      await getNotificationRegistration();
+      setMessage("Test programat în 8 secunde. Pune aplicația în background sau blochează telefonul.");
+      window.setTimeout(async () => {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification("Reminder test neilzzbyanto", {
+          body: "Acesta este testul după 8 secunde. Așa vor funcționa reminderele.",
+          icon: "/icon-192.png?v=19",
+          badge: "/icon-192.png?v=19",
+          tag: `neilzz-delayed-${Date.now()}`,
+          renotify: true,
+        });
+      }, 8000);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Testul programat nu a putut fi trimis.");
     }
   }
 
@@ -813,7 +851,7 @@ export default function AccountPage() {
             )}
 
             {activeTab === "notifications" && (
-              <section className="lux-panel rounded-[2.3rem] p-6 md:p-8"><p className="lux-label">Notificări</p><h2 className="editorial-title mt-3 text-5xl">Actualizări</h2><div className="mt-4 flex flex-wrap items-center gap-3"><span className={profile?.notification_permission === "granted" ? "status-pill status-available mt-0" : "status-pill status-full mt-0"}>{profile?.notification_permission === "granted" ? "Enabled" : "Disabled"}</span><button type="button" onClick={enableNotificări} disabled={actionLoading === "notifications"} className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold disabled:opacity-50"><Bell className="mr-2 inline h-4 w-4" /> {actionLoading === "notifications" ? "Se verifică..." : "Activează notificări"}</button><button type="button" onClick={testNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold">Trimite test</button><PwaInstallCard /></div><div className="mt-7 space-y-4">{notifications.map((item, index) => <div key={item.id} className="grid gap-4 md:grid-cols-[80px_1fr]"><div className="text-xs uppercase tracking-[.22em] text-[var(--faint)]">{index === 0 ? "Latest" : formatDate(item.created_at)}</div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"><p className="lux-label">{item.status || "in-app"}</p><p className="mt-2 font-serif text-3xl">{item.title}</p><p className="mt-2 text-sm leading-7 text-[var(--muted)]">{item.message}</p></div></div>)}</div></section>
+              <section className="lux-panel rounded-[2.3rem] p-6 md:p-8"><p className="lux-label">Notificări</p><h2 className="editorial-title mt-3 text-5xl">Actualizări</h2><div className="mt-4 flex flex-wrap items-center gap-3"><span className={profile?.notification_permission === "granted" ? "status-pill status-available mt-0" : "status-pill status-full mt-0"}>{profile?.notification_permission === "granted" ? "Enabled" : "Disabled"}</span><button type="button" onClick={enableNotificări} disabled={actionLoading === "notifications"} className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold disabled:opacity-50"><Bell className="mr-2 inline h-4 w-4" /> {actionLoading === "notifications" ? "Se verifică..." : "Activează notificări"}</button><button type="button" onClick={testNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold">Trimite test acum</button><button type="button" onClick={testDelayedNotification} className="rounded-full border border-[var(--line)] bg-[var(--text)] px-4 py-2 text-sm font-semibold text-[var(--bg)]">Test 8 secunde</button><PwaInstallCard /></div><div className="mt-7 space-y-4">{notifications.map((item, index) => <div key={item.id} className="grid gap-4 md:grid-cols-[80px_1fr]"><div className="text-xs uppercase tracking-[.22em] text-[var(--faint)]">{index === 0 ? "Latest" : formatDate(item.created_at)}</div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"><p className="lux-label">{item.status || "in-app"}</p><p className="mt-2 font-serif text-3xl">{item.title}</p><p className="mt-2 text-sm leading-7 text-[var(--muted)]">{item.message}</p></div></div>)}</div></section>
             )}
 
 
