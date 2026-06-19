@@ -2,7 +2,6 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -30,6 +29,7 @@ export function SiteHeader() {
   const headerOpacity = useTransform(scrollY, [0, 80], [0.72, 1]);
   const [role, setRole] = React.useState<HeaderRole>("loading");
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [logoUrl, setLogoUrl] = React.useState("/neilzz-logo-light.png");
 
   React.useEffect(() => {
     let active = true;
@@ -85,6 +85,19 @@ export function SiteHeader() {
     };
   }, []);
 
+
+  React.useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    async function loadBrandAssets() {
+      const { data } = await supabase.from("site_settings").select("value").eq("key", "brand_assets").maybeSingle();
+      const value = data?.value as { logoUrl?: string } | null;
+      if (active && value?.logoUrl) setLogoUrl(value.logoUrl);
+    }
+    loadBrandAssets();
+    return () => { active = false; };
+  }, []);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50">
       <motion.div
@@ -94,12 +107,9 @@ export function SiteHeader() {
       />
       <div className="relative mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
         <Link href="/" className="flex shrink-0 items-center">
-          <Image
-            src="/neilzz-logo-light.png"
+          <img
+            src={logoUrl}
             alt="neilzzbyanto"
-            width={240}
-            height={112}
-            priority
             className="h-14 w-auto object-contain drop-shadow-[0_0_20px_rgba(247,192,207,0.24)] md:h-16"
           />
         </Link>

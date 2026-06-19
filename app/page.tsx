@@ -559,7 +559,7 @@ export default function Home() {
                 <p className="lux-label">Instagram</p>
                 <h2 className="editorial-title mt-4 text-5xl leading-[0.92] md:text-7xl">Inspirație Instagram</h2>
                 <p className="mt-5 max-w-xl text-sm leading-7 text-[var(--muted)] md:text-base">
-                  Urmărește ultimele lucrări, story-uri și locuri libere direct pe Instagram. Secțiunea de aici este un preview elegant, iar feed-ul real îl conectăm ulterior cu API oficial.
+                  Urmărește profilul oficial neilzzbyanto pentru ultimele lucrări, story-uri și locuri libere. Cardurile de aici duc direct către Instagram.
                 </p>
                 <div className="mt-7">
                   <LuxuryButton href={homepageContent.instagramUrl || INSTAGRAM_URL}>
@@ -574,7 +574,7 @@ export default function Home() {
                     <div className="relative aspect-[4/5] overflow-hidden rounded-[1.45rem] bg-[#10060b]">
                       <Image src={image.image_url} alt={image.title || "Instagram neilzzbyanto"} fill sizes="(min-width: 1024px) 22vw, 80vw" className="object-cover opacity-90 transition duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
-                      <p className="absolute bottom-4 left-4 text-xs uppercase tracking-[0.28em] text-white/70">post {index + 1}</p>
+                      <p className="absolute bottom-4 left-4 text-xs uppercase tracking-[0.28em] text-white/70">Instagram</p>
                     </div>
                   </a>
                 ))}

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowUpRight, CalendarDays, Camera, ClipboardList, Gift, Home, LogOut, Settings, Star, UserRound, UsersRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/admin";
+import { DashboardAnalytics } from "@/components/admin/dashboard-analytics";
 
 const cards = [
   { href: "/dashboard/clients", title: "Cliente", text: "Conturi, vizite, activări și notițe private.", icon: UsersRound },
@@ -58,6 +59,8 @@ export default async function DashboardPage() {
             </div>
           </div>
         </header>
+
+        <DashboardAnalytics supabase={supabase} />
 
         <section className="mt-8 grid gap-4 md:grid-cols-3">
           <Link href="/dashboard/reviews" className="lux-panel rounded-[2rem] p-6 transition hover:-translate-y-1"><p className="lux-label">Review-uri</p><p className="mt-4 font-serif text-6xl">{pendingReviews || 0}</p><p className="mt-2 text-sm text-[var(--muted)]">în așteptare</p></Link>
