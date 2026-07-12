@@ -4,23 +4,48 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  BadgeCheck,
   Bell,
   CalendarDays,
-  CheckCircle2,
+  Crown,
   Download,
+  Gem,
   Gift,
   ImagePlus,
   KeyRound,
+  Lock,
   LogOut,
   ShieldCheck,
   Sparkles,
   Star,
   Trash2,
+  Trophy,
   Upload,
-  UserRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PwaInstallCard } from "@/components/pwa-install-card";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { downloadDataUrl, renderGiftCardPng } from "@/lib/gift-card-image";
+
+type GiftCard = {
+  id: string;
+  code: string;
+  recipient_name: string | null;
+  amount: number | null;
+  message: string | null;
+  issued_at: string | null;
+  expires_at: string | null;
+  status: string;
+};
+
+type PushDiag = {
+  permission: string;
+  sw: boolean;
+  browserSub: boolean;
+  supabaseSub: boolean;
+  vapid: boolean;
+  lastError: string;
+};
 
 type Profil = {
   id: string;
@@ -85,14 +110,21 @@ type AccentOption = {
   value: string;
   label: string;
   description: string;
+  swatch: string;
+  bg: string;
 };
 
 const accentOptions: AccentOption[] = [
-  { value: "rose-gold", label: "Rose Gold", description: "Luxury roz auriu, default neilzzbyanto." },
-  { value: "champagne", label: "Champagne", description: "Cald, elegant, ivory/gold." },
-  { value: "mocha", label: "Mocha", description: "Maro premium, soft și cozy." },
-  { value: "sapphire", label: "Sapphire", description: "Albastru rece, editorial." },
-  { value: "amethyst", label: "Amethyst", description: "Mov luxury, glossy." },
+  { value: "rose-gold", label: "Rose Gold", description: "Luxury roz auriu, default neilzzbyanto.", swatch: "#f0a7ba", bg: "#040304" },
+  { value: "champagne", label: "Aur de Șampanie", description: "Aur cald, ivory premium.", swatch: "#c9a86a", bg: "#0a0a0c" },
+  { value: "emerald", label: "Smarald Imperial", description: "Verde bijuterie, editorial.", swatch: "#3ed6a3", bg: "#04120d" },
+  { value: "sapphire", label: "Safir de Miezul Nopții", description: "Albastru rece, profund.", swatch: "#7ba3ff", bg: "#050810" },
+  { value: "bordeaux", label: "Bordeaux Vintage", description: "Roșu vin, romantic.", swatch: "#e06a84", bg: "#120507" },
+  { value: "amethyst", label: "Ametist Regal", description: "Mov luxury, glossy.", swatch: "#b78aff", bg: "#0b0614" },
+  { value: "rose-paris", label: "Aur Roz Parizian", description: "Roz-auriu delicat, soft.", swatch: "#f0b7b0", bg: "#160d0e" },
+  { value: "amber", label: "Chihlimbar de Toscana", description: "Chihlimbar cald, cozy.", swatch: "#f0a94f", bg: "#120a03" },
+  { value: "turquoise", label: "Turcoaz de Riviera", description: "Turcoaz proaspăt, marin.", swatch: "#4fdbe4", bg: "#031012" },
+  { value: "onyx", label: "Onix & Platină", description: "Gri platină, minimal.", swatch: "#d6d9e0", bg: "#050506" },
 ];
 
 function safeAccent(value?: string | null) {
@@ -100,10 +132,10 @@ function safeAccent(value?: string | null) {
 }
 
 const rankMap = [
-  { name: "Clientă nouă", min: 0, next: 5, mark: "○", benefits: ["Cont privat neilzzbyanto", "Inspirațiile mele", "Istoric programări"] },
-  { name: "Clientă regulară", min: 5, next: 10, mark: "✦", benefits: ["10% off la reward #1", "Review verificat", "Rank afișat lângă review"] },
-  { name: "Clientă VIP", min: 10, next: 15, mark: "◇", benefits: ["25% off la reward #2", "Prioritate la programări", "Badge VIP în review-uri"] },
-  { name: "Clientă elite", min: 15, next: null, mark: "✧◇✧", benefits: ["50% off la reward #3", "Nivel premium", "Badge Elite în review-uri"] },
+  { name: "Clientă nouă", min: 0, next: 5, tone: "basic", benefits: ["Cont privat neilzzbyanto", "Board de inspirații", "Istoric programări"] },
+  { name: "Clientă regulară", min: 5, next: 10, tone: "regular", benefits: ["Reward-uri deblocate", "Review verificat", "Status afișat în cont"] },
+  { name: "Clientă VIP", min: 10, next: 15, tone: "vip", benefits: ["Prioritate la programări", "Reward-uri premium", "Badge VIP lângă nume"] },
+  { name: "Clientă elite", min: 15, next: null, tone: "elite", benefits: ["Toate reward-urile", "Nivel maxim", "Badge Elite premium"] },
 ];
 
 function getRank(visits: number) {
@@ -121,6 +153,7 @@ const rewardMilestones = [
   { visits: 15, label: "50% OFF", short: "50%" },
 ];
 
+
 function rewardForNumber(rewardNumber: number) {
   return rewardMilestones[Math.max(0, Math.min(rewardNumber - 1, rewardMilestones.length - 1))] || rewardMilestones[0];
 }
@@ -131,6 +164,46 @@ function rewardForVisits(visits: number) {
 
 function nextRewardForVisits(visits: number) {
   return rewardMilestones.find((item) => visits < item.visits) || null;
+}
+
+function appointmentDateTime(item: Appointment) {
+  const time = formatTime(item.appointment_time);
+  return new Date(`${item.appointment_date}T${time === "—" ? "23:59" : time}:00`);
+}
+
+function isActiveAppointment(item: Appointment) {
+  const status = (item.status || "").toLowerCase();
+  if (["completed", "cancelled", "canceled", "done", "finalizată", "anulată"].includes(status)) return false;
+  return appointmentDateTime(item).getTime() >= Date.now() - 60 * 60 * 1000;
+}
+
+function appointmentStatusMeta(item: Appointment) {
+  const status = (item.status || "upcoming").toLowerCase();
+  if (["completed", "done", "finalizată"].includes(status) || appointmentDateTime(item).getTime() < Date.now() - 60 * 60 * 1000) {
+    return { label: "Finalizată", className: "status-pill status-completed mt-0" };
+  }
+  if (["cancelled", "canceled", "anulată"].includes(status)) {
+    return { label: "Anulată", className: "status-pill status-full mt-0" };
+  }
+  if (["confirmed", "confirmată", "upcoming"].includes(status)) {
+    return { label: "Urmează", className: "status-pill status-available mt-0" };
+  }
+  if (["pending", "scheduled", "programată"].includes(status)) {
+    return { label: "În așteptare", className: "status-pill status-pending mt-0" };
+  }
+  return { label: status, className: "status-pill status-limited mt-0" };
+}
+
+function dailyResetCountdown() {
+  const roNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Bucharest" }));
+  const reset = new Date(roNow);
+  reset.setDate(reset.getDate() + 1);
+  reset.setHours(0, 0, 0, 0);
+  const diff = Math.max(0, reset.getTime() - roNow.getTime());
+  const hours = Math.floor(diff / 3_600_000);
+  const minutes = Math.floor((diff % 3_600_000) / 60_000);
+  const seconds = Math.floor((diff % 60_000) / 1000);
+  return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 function initials(name?: string | null, email?: string | null) {
@@ -161,6 +234,15 @@ function fileToDataUrl(file: File) {
   });
 }
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i += 1) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
 export default function AccountPage() {
   const supabase = createClient();
   const [profile, setProfil] = useState<Profil | null>(null);
@@ -169,6 +251,8 @@ export default function AccountPage() {
   const [inspirations, setInspirații] = useState<Inspiration[]>([]);
   const [notifications, setNotificări] = useState<NotificationItem[]>([]);
   const [myReviews, setMyReviews] = useState<MyReview[]>([]);
+  const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
+  const [pushDiag, setPushDiag] = useState<PushDiag>({ permission: "—", sw: false, browserSub: false, supabaseSub: false, vapid: false, lastError: "" });
   const [code, setCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -189,6 +273,7 @@ export default function AccountPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [fullscreenInspiration, setFullscreenInspiration] = useState<Inspiration | null>(null);
   const [selectedAccent, setSelectedAccent] = useState("rose-gold");
+  const [dailyReset, setDailyReset] = useState("00h 00m 00s");
 
   async function loadAccount() {
     setLoading(true);
@@ -265,11 +350,32 @@ export default function AccountPage() {
     if (inspirationRes.data) setInspirații(inspirationRes.data as Inspiration[]);
     if (notificationRes.data) setNotificări(notificationRes.data as NotificationItem[]);
     if (reviewRes.data) setMyReviews(reviewRes.data as MyReview[]);
+
+    // Carduri cadou asociate emailului contului (RLS filtrează automat).
+    const { data: giftData } = await supabase
+      .from("gift_cards")
+      .select("id,code,recipient_name,amount,message,issued_at,expires_at,status")
+      .order("issued_at", { ascending: false });
+    if (giftData) setGiftCards(giftData as GiftCard[]);
+
     setLoading(false);
+  }
+
+  async function downloadGiftCard(card: GiftCard) {
+    const dataUrl = await renderGiftCardPng({
+      recipient_name: card.recipient_name,
+      amount: card.amount,
+      message: card.message,
+      code: card.code,
+      expires_at: card.expires_at,
+    });
+    if (dataUrl) downloadDataUrl(dataUrl, `gift-card-${card.code}.png`);
   }
 
   useEffect(() => {
     loadAccount();
+    refreshPushDiag();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -286,8 +392,10 @@ export default function AccountPage() {
 
   function changeAccent(accent: string) {
     const nextAccent = safeAccent(accent);
-    setSelectedAccent(nextAccent);
-    window.localStorage.setItem("neilzz-accent", nextAccent);
+    // Single source of truth, applied immediately on first click:
+    setSelectedAccent(nextAccent);                                   // 1. React state
+    document.documentElement.dataset.accent = nextAccent;            // 2. data-accent (CSS vars)
+    window.localStorage.setItem("neilzz-accent", nextAccent);        // 3. persistență
     window.dispatchEvent(new CustomEvent("neilzz-accent-changed", { detail: { accent: nextAccent } }));
     setMessage(`Tema ${accentOptions.find((item) => item.value === nextAccent)?.label || "Rose Gold"} a fost aplicată pe contul tău.`);
   }
@@ -539,6 +647,20 @@ export default function AccountPage() {
     return () => URL.revokeObjectURL(url);
   }, [reviewFile]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (["overview", "profile", "appointments", "rewards", "giftcards", "daily", "inspirations", "reviews", "notifications", "appearance", "security"].includes(tab || "")) {
+      setActiveTab(tab as string);
+    }
+  }, []);
+
+  useEffect(() => {
+    setDailyReset(dailyResetCountdown());
+    const timer = window.setInterval(() => setDailyReset(dailyResetCountdown()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   async function submitReview(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
@@ -599,20 +721,139 @@ export default function AccountPage() {
     return registration;
   }
 
+  // Salvează subscripția în Supabase prin ruta API (RLS pe user autentificat).
+  async function saveSubscription(subscription: PushSubscription): Promise<{ saved: boolean; error?: string }> {
+    const json = subscription.toJSON();
+    try {
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          keys: { p256dh: json.keys?.p256dh, auth: json.keys?.auth },
+          userAgent: navigator.userAgent,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.saved) return { saved: false, error: data?.error || "Salvarea în Supabase a eșuat." };
+      return { saved: true };
+    } catch (error) {
+      return { saved: false, error: error instanceof Error ? error.message : "Cerere eșuată." };
+    }
+  }
+
+  async function refreshPushDiag() {
+    const diag: PushDiag = {
+      permission: typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
+      sw: false,
+      browserSub: false,
+      supabaseSub: false,
+      vapid: !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      lastError: "",
+    };
+    try {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        diag.sw = !!reg?.active;
+        const sub = reg?.pushManager ? await reg.pushManager.getSubscription() : null;
+        diag.browserSub = !!sub;
+        if (sub) {
+          const { count } = await supabase
+            .from("push_subscriptions")
+            .select("id", { count: "exact", head: true })
+            .eq("endpoint", sub.endpoint);
+          diag.supabaseSub = (count || 0) > 0;
+        }
+      }
+    } catch (error) {
+      diag.lastError = error instanceof Error ? error.message : String(error);
+    }
+    setPushDiag(diag);
+  }
+
   async function enableNotificări() {
     if (!profile) return;
     setActionLoading("notifications");
-    let permission = "unsupported";
     try {
-      if (typeof window !== "undefined" && "Notification" in window) {
-        permission = await Notification.requestPermission();
-        await getNotificationRegistration();
+      if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+        setMessage("Browserul nu suportă notificări push.");
+        setActionLoading(null);
+        return;
       }
-      const { error } = await supabase.from("profiles").update({ notification_permission: permission }).eq("id", profile.id);
-      setMessage(error ? error.message : permission === "granted" ? "Notificările sunt permise pe acest dispozitiv. Apasă Test 8 secunde și blochează telefonul." : "Notificările nu sunt active în browser.");
+      if (!window.isSecureContext) {
+        setMessage("Notificările push necesită HTTPS (sau localhost).");
+        setActionLoading(null);
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      await supabase.from("profiles").update({ notification_permission: permission }).eq("id", profile.id);
+      if (permission !== "granted") {
+        setMessage("Permisiunea pentru notificări nu a fost acordată.");
+        await refreshPushDiag();
+        setActionLoading(null);
+        return;
+      }
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        setMessage("Lipsește NEXT_PUBLIC_VAPID_PUBLIC_KEY. Configurează cheile VAPID.");
+        setActionLoading(null);
+        return;
+      }
+      const registration = await getNotificationRegistration();
+      if (!registration?.pushManager) {
+        setMessage("Service Worker-ul nu este disponibil pe acest dispozitiv.");
+        setActionLoading(null);
+        return;
+      }
+      const existing = await registration.pushManager.getSubscription();
+      const subscription = existing || (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      }));
+      const { saved, error } = await saveSubscription(subscription);
+      setMessage(saved ? "Dispozitivul a fost înregistrat pentru notificări push." : `Push neactivat: ${error}`);
+      await refreshPushDiag();
       await loadAccount();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Notificările nu au putut fi activate.");
+    }
+    setActionLoading(null);
+  }
+
+  async function reregisterDevice() {
+    if (!profile) return;
+    setActionLoading("reregister");
+    try {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        setMessage("Lipsește NEXT_PUBLIC_VAPID_PUBLIC_KEY.");
+        setActionLoading(null);
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setMessage("Permisiunea pentru notificări nu a fost acordată.");
+        setActionLoading(null);
+        return;
+      }
+      const registration = await getNotificationRegistration();
+      if (!registration?.pushManager) {
+        setMessage("Service Worker-ul nu este disponibil.");
+        setActionLoading(null);
+        return;
+      }
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+      const { saved, error } = await saveSubscription(subscription);
+      setMessage(saved ? "Dispozitivul a fost reînregistrat cu noua cheie VAPID." : `Reînregistrare eșuată: ${error}`);
+      await refreshPushDiag();
+      await loadAccount();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Reînregistrarea a eșuat.");
     }
     setActionLoading(null);
   }
@@ -639,7 +880,7 @@ export default function AccountPage() {
           tag: `neilzz-test-${Date.now()}`,
         });
       } else {
-        new Notification("Test neilzzbyanto", { body: "Notificările simple merg." });
+        new Notification("Test neilzzbyanto", { body: "Notificările pe telefon merg." });
       }
       setMessage("Notificare test trimisă. Pe iPhone poate apărea în Notification Center dacă aplicația este deschisă.");
     } catch (error) {
@@ -693,7 +934,12 @@ export default function AccountPage() {
   const rewardPercent = nextReward ? Math.min(100, Math.round((rewardProgress / rewardRange) * 100)) : 100;
   const rewardsEarned = rewardForVisits(visitCount).length;
   const canGenerateReward = rewardsEarned > rewards.length;
-  const nextAppointment = appointments.filter((item) => item.status === "upcoming").sort((a, b) => a.appointment_date.localeCompare(b.appointment_date))[0];
+  const sortedAppointments = [...appointments].sort((a, b) => appointmentDateTime(a).getTime() - appointmentDateTime(b).getTime());
+  const upcomingAppointments = sortedAppointments.filter(isActiveAppointment);
+  const pastAppointments = sortedAppointments.filter((item) => !isActiveAppointment(item)).reverse();
+  const nextAppointment = upcomingAppointments[0];
+  const completedRewards = rewardMilestones.filter((item) => visitCount >= item.visits);
+  const lockedRewards = rewardMilestones.filter((item) => visitCount < item.visits);
   const completionItems = [
     { label: "Adaugă numele complet", done: Boolean(profile?.full_name), action: "profile" },
     { label: "Adaugă poză de profil", done: Boolean(profile?.avatar_url), action: "profile" },
@@ -710,6 +956,7 @@ export default function AccountPage() {
     { id: "profile", label: "Profil" },
     { id: "appointments", label: "Programări" },
     { id: "rewards", label: "Rewards" },
+    { id: "giftcards", label: "Carduri cadou" },
     { id: "inspirations", label: "Inspirații" },
     { id: "reviews", label: "Review-uri" },
     { id: "notifications", label: "Notificări" },
@@ -718,15 +965,16 @@ export default function AccountPage() {
   ];
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[var(--bg)] px-5 py-8 text-[var(--text)] md:px-8">
+    <main className="app-shell-bg relative min-h-screen overflow-hidden bg-[var(--bg)] px-5 py-8 text-[var(--text)] md:px-8">
       <div className="lux-noise" />
       <div className="relative z-10 mx-auto max-w-6xl">
-        <div className="mb-8 flex items-center justify-between gap-3">
-          <Link href="/" className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm text-[var(--muted)]"><ArrowLeft className="h-4 w-4" /> Home</Link>
-          <div className="flex flex-wrap justify-end gap-2">
-            {profile?.role === "admin" && <Link href="/dashboard" className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold">Dashboard</Link>}
-            <button onClick={() => setGuideOpen(true)} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold">Ghid rapid</button>
-            <button onClick={logout} className="logout-lux inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold"><LogOut className="h-4 w-4" /> Logout</button>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 md:mb-8">
+          <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--muted)] shadow-[0_12px_36px_var(--shadow)] backdrop-blur-xl transition hover:bg-[var(--panel-strong)] hover:text-[var(--text)]"><ArrowLeft className="h-4 w-4" /> Home</Link>
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <ThemeToggle />
+            {profile?.role === "admin" && <Link href="/dashboard" className="inline-flex min-h-11 items-center rounded-full border border-[var(--line)] bg-[var(--panel-strong)] px-4 py-2 text-sm font-semibold shadow-[0_12px_36px_var(--shadow)] backdrop-blur-xl">Dashboard</Link>}
+            <button onClick={() => setGuideOpen(true)} className="guide-lux-button inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold"><Sparkles className="h-4 w-4" /> Ghid rapid</button>
+            <button onClick={logout} className="logout-lux inline-flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold"><LogOut className="h-4 w-4" /> Logout</button>
           </div>
         </div>
 
@@ -766,38 +1014,43 @@ export default function AccountPage() {
           </section>
         )}
 
-        {profile?.is_activated && (
-          <section className="mb-5 rounded-[2rem] border border-emerald-300/20 bg-emerald-300/10 p-5 text-sm text-emerald-100">
-            <b>Cont verificat.</b> Poți lăsa review verificat și poți folosi sistemul de rewards.
-          </section>
-        )}
 
-        <header className="lux-panel rounded-[2.7rem] p-6 md:p-8">
+        <header className="lux-panel rounded-[2.2rem] p-5 md:rounded-[2.7rem] md:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-5">
-              <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full border border-[var(--line)] bg-[var(--panel-strong)] text-2xl font-semibold text-[var(--rose-strong)]">
+            <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+              <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border border-[var(--line)] bg-[var(--panel-strong)] text-2xl font-semibold text-[var(--rose-strong)] sm:h-24 sm:w-24">
                 {profile?.avatar_url ? <img src={profile.avatar_url} alt="Profil" className="h-full w-full object-cover" /> : initials(profile?.full_name, profile?.email)}
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="lux-label">Contul meu</p>
-                <h1 className="editorial-title mt-2 text-5xl leading-none md:text-6xl">{fullName || profile?.email?.split("@")[0] || "Cont neilzzbyanto"}</h1>
-                <p className="mt-2 text-sm text-[var(--muted)]">{profile?.email}</p>
-                <span className="mt-3 inline-flex rounded-full border border-[var(--line)] bg-[var(--panel)] px-3 py-1 text-xs uppercase tracking-[.22em] text-[var(--rose-strong)]">{rank.mark} {rank.name}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                  <h1 className="editorial-title break-words text-3xl leading-none sm:text-5xl md:text-6xl">{fullName || profile?.email?.split("@")[0] || "Cont neilzzbyanto"}</h1>
+                  {profile?.is_activated && (
+                    <span className="verified-lux-badge" title="Cont verificat">
+                      <BadgeCheck className="h-4 w-4" /> Verificat
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-[var(--muted)] [overflow-wrap:anywhere]">{profile?.email}</p>
+                <span className="rank-lux-badge mt-3">
+                  {rank.name === "Clientă elite" ? <Crown className="h-4 w-4" /> : rank.name === "Clientă VIP" ? <Gem className="h-4 w-4" /> : rank.name === "Clientă regulară" ? <Trophy className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                  {rank.name}
+                </span>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-              <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="text-xs uppercase tracking-[.28em] text-[var(--faint)]">Membră din</p><p className="mt-2 font-semibold">{formatDate(profile?.created_at)}</p></div>
-              <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="text-xs uppercase tracking-[.28em] text-[var(--faint)]">Vizite</p><p className="mt-2 font-semibold">{visitCount}</p></div>
-              <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="text-xs uppercase tracking-[.28em] text-[var(--faint)]">Profil</p><p className="mt-2 font-semibold">{profileCompletion}%</p></div>
+            <div className="grid w-full grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
+              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Membră din</p><p className="mt-1.5 text-sm font-semibold sm:text-base">{formatDate(profile?.created_at)}</p></div>
+              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Vizite</p><p className="mt-1.5 text-sm font-semibold sm:text-base">{visitCount}</p></div>
+              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Profil</p><p className="mt-1.5 text-sm font-semibold sm:text-base">{profileCompletion}%</p></div>
             </div>
           </div>
         </header>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[250px_1fr]">
-          <aside className="lux-panel h-fit rounded-[2rem] p-3">
-            <div className="grid gap-2">
+          <aside className="lux-panel h-fit rounded-[2rem] p-3 lg:sticky lg:top-6">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
               {tabs.map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? "rounded-2xl bg-[var(--panel-strong)] px-4 py-3 text-left text-sm font-semibold text-[var(--text)]" : "rounded-2xl px-4 py-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)]"}>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? "shrink-0 rounded-2xl bg-[var(--panel-strong)] px-4 py-3 text-left text-sm font-semibold text-[var(--text)] shadow-[inset_0_1px_0_rgba(255,255,255,.08)] lg:w-full" : "shrink-0 rounded-2xl px-4 py-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)] lg:w-full"}>
                   {tab.label}
                 </button>
               ))}
@@ -807,31 +1060,51 @@ export default function AccountPage() {
           <section className="min-w-0">
             {activeTab === "overview" && (
               <div className="grid gap-5 xl:grid-cols-2">
-                <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
-                  <p className="lux-label">Next appointment</p>
+                <section className="account-next-card lux-panel rounded-[2.3rem] p-5 md:p-6">
+                  <p className="lux-label">Următoarea programare</p>
                   <h2 className="editorial-title mt-3 text-4xl">{nextAppointment ? formatDate(nextAppointment.appointment_date) : "Nicio programare activă"}</h2>
-                  <p className="mt-3 text-sm text-[var(--muted)]">{nextAppointment ? `${nextAppointment.appointment_time || ""} · ${nextAppointment.custom_note || nextAppointment.note || "Programare confirmată"}` : "Când Antonia adaugă o programare, apare aici."}</p>
-                  <div className="mt-5 flex flex-wrap gap-2 text-sm text-[var(--muted)]"><span className="status-pill status-available">Creată</span><span className="status-pill status-available">Confirmată</span><span className="status-pill status-limited">Reminder</span><span className="status-pill status-limited">Urmează</span></div>
+                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{nextAppointment ? `${formatTime(nextAppointment.appointment_time)} · ${nextAppointment.custom_note || nextAppointment.note || "Programare confirmată"}` : "Aici apare doar următoarea programare reală, nu tot istoricul."}</p>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    {nextAppointment && <span className={appointmentStatusMeta(nextAppointment).className}>{appointmentStatusMeta(nextAppointment).label}</span>}
+                    <button onClick={() => setActiveTab("appointments")} className="account-action-pill">Vezi programările</button>
+                  </div>
                 </section>
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
-                  <p className="lux-label">Rank benefits</p>
-                  <div className="flex items-start justify-between gap-4"><div><h2 className="editorial-title mt-3 text-5xl leading-none">{rank.name}</h2><p className="mt-4 text-sm text-[var(--muted)]">{nextRankVizite ? `Mai ai ${visitsToNextRank} vizite până la următorul rank.` : "Ai ajuns la cel mai înalt rank."}</p></div><Sparkles className="h-8 w-8 text-[var(--rose-strong)]" /></div>
-                  <div className="mt-6 grid gap-3 md:grid-cols-3">{rank.benefits.map((benefit) => <div key={benefit} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 text-sm text-[var(--muted)]"><ShieldCheck className="mb-3 h-5 w-5 text-[var(--rose-strong)]" />{benefit}</div>)}</div>
+                  <p className="lux-label">Rank & rewards</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <span className="rank-orb">{rank.name === "Clientă elite" ? <Crown className="h-6 w-6" /> : rank.name === "Clientă VIP" ? <Gem className="h-6 w-6" /> : rank.name === "Clientă regulară" ? <Trophy className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}</span>
+                      <h2 className="editorial-title mt-4 text-5xl leading-none">{rank.name}</h2>
+                      <p className="mt-4 text-sm text-[var(--muted)]">{nextRankVizite ? `Mai ai ${visitsToNextRank} vizite până la următorul rank.` : "Ai ajuns la cel mai înalt rank."}</p>
+                    </div>
+                    <Sparkles className="h-8 w-8 text-[var(--rose-strong)]" />
+                  </div>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    {rewardMilestones.slice(0, 4).map((reward) => {
+                      const unlocked = visitCount >= reward.visits;
+                      return (
+                        <div key={reward.visits} className={unlocked ? "reward-mini-card reward-mini-card-unlocked" : "reward-mini-card"}>
+                          {unlocked ? <BadgeCheck className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          <div><p className="text-[0.65rem] uppercase tracking-[.28em] text-[var(--faint)]">{reward.visits} vizite</p><p className="font-serif text-2xl text-[var(--text)]">{reward.label}</p></div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </section>
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8 xl:col-span-2">
-                  <p className="lux-label">Recent updates</p>
-                  <div className="mt-5 grid gap-3 md:grid-cols-4">
-                    <button onClick={() => setActiveTab("appointments")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><CalendarDays className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Programări</p><p className="mt-1 text-sm text-[var(--muted)]">{appointments.length} în cont</p></button>
-                    <button onClick={() => setActiveTab("rewards")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><Gift className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Rewards</p><p className="mt-1 text-sm text-[var(--muted)]">{rewards.length} carduri</p></button>
-                    <button onClick={() => setActiveTab("inspirations")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><ImagePlus className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Inspirații</p><p className="mt-1 text-sm text-[var(--muted)]">{inspirations.length} poze salvate</p></button>
-                    <button onClick={() => setActiveTab("reviews")} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 text-left"><Star className="h-5 w-5 text-[var(--rose-strong)]" /><p className="mt-3 font-serif text-2xl">Lasă review</p><p className="mt-1 text-sm text-[var(--muted)]">{myReviews.length} trimise</p></button>
+                  <p className="lux-label">Shortcut-uri</p>
+                  <div className="mt-5 grid gap-3 md:grid-cols-5">
+                    <button onClick={() => setActiveTab("appointments")} className="premium-tile"><CalendarDays className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Programări</p><p className="mt-1 text-sm text-[var(--muted)]">{upcomingAppointments.length} viitoare</p></button>
+                    <button onClick={() => setActiveTab("rewards")} className="premium-tile"><Gift className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Rewards</p><p className="mt-1 text-sm text-[var(--muted)]">{rewards.length} carduri</p></button>
+                    <button onClick={() => setActiveTab("inspirations")} className="premium-tile"><ImagePlus className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Inspirații</p><p className="mt-1 text-sm text-[var(--muted)]">{inspirations.length} poze salvate</p></button>
+                    <button onClick={() => setActiveTab("reviews")} className="premium-tile"><Star className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Lasă review</p><p className="mt-1 text-sm text-[var(--muted)]">{myReviews.length} trimise</p></button>
                   </div>
                 </section>
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8 xl:col-span-2">
                   <p className="lux-label">Theme Engine</p>
                   <h2 className="editorial-title mt-3 text-4xl">Tema ta personală</h2>
-                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">Alege o culoare doar pentru contul tău. Nu schimbă tema pentru alte cliente.</p>
-                  <button onClick={() => setActiveTab("appearance")} className="lux-action lux-action-soft mt-5 rounded-full px-5 py-3 text-sm font-semibold">Schimbă tema</button>
+                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">Schimbă instant dark/light din butonul de sus sau alege o culoare premium pentru contul tău.</p>
+                  <button onClick={() => setActiveTab("appearance")} className="lux-action lux-action-soft mt-5 rounded-full px-5 py-3 text-sm font-semibold">Alege culoarea</button>
                 </section>
               </div>
             )}
@@ -851,16 +1124,96 @@ export default function AccountPage() {
             {activeTab === "appointments" && (
               <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
                 <p className="lux-label">Programări</p><h2 className="editorial-title mt-3 text-5xl">Programările mele</h2>
-                <div className="mt-6 space-y-3">{appointments.map((item) => <div key={item.id} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="font-serif text-2xl">{formatDate(item.appointment_date)} {formatTime(item.appointment_time)}</p><span className="status-pill status-limited">{item.status}</span></div>{(item.custom_note || item.note) && <p className="mt-2 text-sm text-[var(--muted)]">{item.custom_note || item.note}</p>}</div>)}{appointments.length === 0 && <p className="text-sm text-[var(--muted)]">Nu ai programări încă.</p>}</div>
+                <p className="mt-4 text-sm leading-7 text-[var(--muted)]">Programările viitoare sunt separate de istoric și primesc status corect, nu toate galbene.</p>
+                <div className="mt-7 grid gap-4">
+                  {upcomingAppointments.map((item) => {
+                    const meta = appointmentStatusMeta(item);
+                    return (
+                      <article key={item.id} className="appointment-card appointment-card-next">
+                        <div className="flex flex-wrap items-center justify-between gap-3"><p className="font-serif text-3xl">{formatDate(item.appointment_date)} · {formatTime(item.appointment_time)}</p><span className={meta.className}>{meta.label}</span></div>
+                        {(item.custom_note || item.note) && <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{item.custom_note || item.note}</p>}
+                      </article>
+                    );
+                  })}
+                  {upcomingAppointments.length === 0 && <div className="rounded-[1.7rem] border border-[var(--line)] bg-[var(--panel)] p-5 text-sm text-[var(--muted)]">Nu ai programări viitoare.</div>}
+                </div>
+                {pastAppointments.length > 0 && (
+                  <div className="mt-9">
+                    <p className="lux-label">Istoric</p>
+                    <div className="mt-4 grid gap-3">
+                      {pastAppointments.map((item) => {
+                        const meta = appointmentStatusMeta(item);
+                        return (
+                          <article key={item.id} className="appointment-card opacity-75">
+                            <div className="flex flex-wrap items-center justify-between gap-3"><p className="font-serif text-2xl">{formatDate(item.appointment_date)} · {formatTime(item.appointment_time)}</p><span className={meta.className}>{meta.label}</span></div>
+                            {(item.custom_note || item.note) && <p className="mt-2 text-sm text-[var(--muted)]">{item.custom_note || item.note}</p>}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </section>
             )}
 
             {activeTab === "rewards" && (
               <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
                 <p className="lux-label">Rewards</p><h2 className="editorial-title mt-3 text-5xl">Progres reward</h2><p className="mt-4 text-sm text-[var(--muted)]">{nextReward ? `Încă ${Math.max(nextReward.visits - visitCount, 0)} vizite până la ${nextReward.label}.` : "Ai atins toate milestone-urile de reward."}</p>
-                <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-center"><div className="relative grid h-32 w-32 place-items-center rounded-full" style={{ background: `conic-gradient(var(--rose-strong) ${rewardPercent}%, rgba(255,255,255,.08) 0)` }}><div className="grid h-[6.6rem] w-[6.6rem] place-items-center rounded-full bg-[var(--bg)] text-3xl font-semibold">{rewardPercent}%</div></div><div className="flex-1"><div className="h-3 overflow-hidden rounded-full bg-[var(--panel)]"><div className="h-full rounded-full bg-[var(--rose)]" style={{ width: `${rewardPercent}%` }} /></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{rewardMilestones.map((item) => <div key={item.visits} className={visitCount >= item.visits ? "rounded-2xl border border-[var(--rose)]/40 bg-[var(--panel-strong)] p-4" : "rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"}><p className="lux-label">{item.visits} vizite</p><p className="mt-2 font-serif text-3xl">{item.label}</p></div>)}</div></div></div>
+                <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-center"><div className="relative grid h-32 w-32 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--rose-strong) ${rewardPercent}%, rgba(255,255,255,.08) 0)` }}><div className="grid h-[6.6rem] w-[6.6rem] place-items-center rounded-full bg-[var(--bg)] text-3xl font-semibold">{rewardPercent}%</div></div><div className="flex-1"><div className="h-3 overflow-hidden rounded-full bg-[var(--panel)]"><div className="h-full rounded-full bg-[var(--rose)]" style={{ width: `${rewardPercent}%` }} /></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{rewardMilestones.map((item) => { const unlocked = visitCount >= item.visits; return <div key={item.visits} className={unlocked ? "reward-milestone reward-milestone-unlocked" : "reward-milestone"}><div className="flex items-center justify-between gap-3"><p className="lux-label">{item.visits} vizite</p>{unlocked ? <BadgeCheck className="h-4 w-4 text-[var(--rose-strong)]" /> : <Lock className="h-4 w-4 text-[var(--faint)]" />}</div><p className="mt-3 font-serif text-3xl">{item.label}</p><p className="mt-2 text-xs text-[var(--muted)]">{unlocked ? "Deblocat" : `${item.visits - visitCount} vizite rămase`}</p></div>; })}</div></div></div>
+                <div className="mt-7 grid gap-4 lg:grid-cols-[1fr_.8fr]">
+                  <div className="rounded-[1.8rem] border border-[var(--line)] bg-[var(--panel)] p-5">
+                    <p className="lux-label">Deblocate acum</p>
+                    <div className="mt-4 flex flex-wrap gap-2">{completedRewards.length > 0 ? completedRewards.map((item) => <span key={item.visits} className="rounded-full border border-[var(--rose)]/35 bg-[var(--rose)]/10 px-3 py-2 text-xs font-semibold text-[var(--rose-strong)]">{item.label}</span>) : <span className="text-sm text-[var(--muted)]">Încă nu ai reward deblocat.</span>}</div>
+                  </div>
+                  <div className="rounded-[1.8rem] border border-[var(--line)] bg-[var(--panel)] p-5">
+                    <p className="lux-label">Următoarele</p>
+                    <div className="mt-4 space-y-2">{lockedRewards.slice(0, 3).map((item) => <div key={item.visits} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] px-4 py-3 text-sm"><span>{item.label}</span><span className="text-[var(--faint)]">{item.visits} vizite</span></div>)}{lockedRewards.length === 0 && <span className="text-sm text-[var(--muted)]">Toate reward-urile sunt deblocate.</span>}</div>
+                  </div>
+                </div>
                 <button onClick={generateReward} disabled={!canGenerateReward} className="lux-action lux-action-soft mt-6 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-45">Generează voucher</button>
                 <div className="mt-5 grid gap-3 md:grid-cols-2">{rewards.map((reward) => <div key={reward.id} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4"><p className="text-xs uppercase tracking-[.26em] text-[var(--faint)]">Reward #{reward.reward_number}</p><p className="mt-2 font-semibold">{reward.code}</p><p className="mt-1 text-sm text-[var(--muted)]">{reward.status} · {rewardForNumber(reward.reward_number).label}</p><button onClick={() => downloadVoucher(reward)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm"><Download className="h-4 w-4" /> Descarcă PNG</button></div>)}</div>
+              </section>
+            )}
+
+            {activeTab === "giftcards" && (
+              <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
+                <p className="lux-label">Carduri cadou</p>
+                <h2 className="editorial-title mt-3 text-5xl">Cardurile tale cadou</h2>
+                <p className="mt-4 text-sm leading-7 text-[var(--muted)]">Cardurile cadou asociate contului tău apar aici. Le poți descărca oricând.</p>
+
+                {giftCards.length === 0 ? (
+                  <div className="mt-8 grid place-items-center rounded-[2rem] border border-dashed border-[var(--line)] bg-[var(--panel)] p-10 text-center">
+                    <span className="grid h-16 w-16 place-items-center rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] text-[var(--rose-strong)]"><Gift className="h-7 w-7" /></span>
+                    <p className="mt-5 font-serif text-3xl">Niciun card cadou încă</p>
+                    <p className="mt-2 max-w-md text-sm text-[var(--muted)]">Vrei să oferi sau să primești un card cadou neilzzbyanto? Descoperă cum funcționează.</p>
+                    <Link href="/gift-card" className="lux-action lux-action-soft mt-6 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold"><Gift className="h-4 w-4" /> Vezi cardurile cadou</Link>
+                  </div>
+                ) : (
+                  <div className="mt-7 grid gap-4 md:grid-cols-2">
+                    {giftCards.map((card) => {
+                      const statusClass = card.status === "active" ? "status-available" : card.status === "used" ? "status-completed" : card.status === "expired" ? "status-full" : "status-limited";
+                      const statusLabel = card.status === "active" ? "Activ" : card.status === "used" ? "Folosit" : card.status === "expired" ? "Expirat" : "Anulat";
+                      return (
+                        <article key={card.id} className="appointment-card">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="lux-label">{card.recipient_name || "Card cadou"}</p>
+                              <p className="mt-2 font-serif text-4xl">{card.amount} lei</p>
+                            </div>
+                            <span className={`status-pill mt-0 ${statusClass}`}>{statusLabel}</span>
+                          </div>
+                          {card.message && <p className="mt-3 text-sm italic leading-6 text-[var(--muted)]">“{card.message}”</p>}
+                          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--faint)]">
+                            <span>Cod: <span className="font-mono text-[var(--muted)]">{card.code}</span></span>
+                            <span>Emis: {card.issued_at || "—"}</span>
+                            <span>Expiră: {card.expires_at || "—"}</span>
+                          </div>
+                          <button onClick={() => downloadGiftCard(card)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold"><Download className="h-4 w-4" /> Descarcă cardul</button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             )}
 
@@ -908,7 +1261,48 @@ export default function AccountPage() {
             )}
 
             {activeTab === "notifications" && (
-              <section className="lux-panel rounded-[2.3rem] p-6 md:p-8"><p className="lux-label">Notificări</p><h2 className="editorial-title mt-3 text-5xl">Actualizări</h2><div className="mt-4 flex flex-wrap items-center gap-3"><span className={profile?.notification_permission === "granted" ? "status-pill status-available mt-0" : "status-pill status-full mt-0"}>{profile?.notification_permission === "granted" ? "Enabled" : "Disabled"}</span><button type="button" onClick={enableNotificări} disabled={actionLoading === "notifications"} className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold disabled:opacity-50"><Bell className="mr-2 inline h-4 w-4" /> {actionLoading === "notifications" ? "Se verifică..." : "Activează notificări"}</button><button type="button" onClick={testNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold">Trimite test acum</button><button type="button" onClick={testDelayedNotification} className="rounded-full border border-[var(--line)] bg-[var(--text)] px-4 py-2 text-sm font-semibold text-[var(--bg)]">Test 8 secunde</button><PwaInstallCard /></div><div className="mt-7 space-y-4">{notifications.map((item, index) => <div key={item.id} className="grid gap-4 md:grid-cols-[80px_1fr]"><div className="text-xs uppercase tracking-[.22em] text-[var(--faint)]">{index === 0 ? "Latest" : formatDate(item.created_at)}</div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"><p className="lux-label">{item.status || "in-app"}</p><p className="mt-2 font-serif text-3xl">{item.title}</p><p className="mt-2 text-sm leading-7 text-[var(--muted)]">{item.message}</p></div></div>)}</div></section>
+              <section className="lux-panel rounded-[2.3rem] p-5 md:p-8">
+                <p className="lux-label">Notificări</p>
+                <h2 className="editorial-title mt-3 text-4xl md:text-5xl">Notificări push</h2>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className={pushDiag.supabaseSub ? "status-pill status-available mt-0" : "status-pill status-full mt-0"}>
+                    {pushDiag.supabaseSub ? "Push activ pe acest dispozitiv" : "Push inactiv"}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={enableNotificări} disabled={actionLoading === "notifications"} className="lux-action lux-action-soft rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"><Bell className="mr-2 inline h-4 w-4" /> {actionLoading === "notifications" ? "Se activează..." : "Activează notificările"}</button>
+                  <button type="button" onClick={reregisterDevice} disabled={actionLoading === "reregister"} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-5 py-3 text-sm font-semibold disabled:opacity-50">{actionLoading === "reregister" ? "Se reînregistrează..." : "Reînregistrează acest dispozitiv"}</button>
+                  <button type="button" onClick={testNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold">Test acum</button>
+                  <button type="button" onClick={testDelayedNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold">Test 8s</button>
+                </div>
+
+                {/* Diagnostic push */}
+                <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                  {[
+                    { label: "Permisiune browser", ok: pushDiag.permission === "granted", value: pushDiag.permission },
+                    { label: "Service Worker", ok: pushDiag.sw, value: pushDiag.sw ? "activ" : "inactiv" },
+                    { label: "Subscription în browser", ok: pushDiag.browserSub, value: pushDiag.browserSub ? "prezent" : "lipsă" },
+                    { label: "Salvat în Supabase", ok: pushDiag.supabaseSub, value: pushDiag.supabaseSub ? "da" : "nu" },
+                    { label: "Cheie VAPID publică", ok: pushDiag.vapid, value: pushDiag.vapid ? "configurată" : "lipsă" },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm">
+                      <span className="min-w-0 text-[var(--muted)]">{row.label}</span>
+                      <span className={`shrink-0 font-semibold ${row.ok ? "text-emerald-300" : "text-[var(--rose-strong)]"}`}>{row.ok ? "✓ " : "○ "}{row.value}</span>
+                    </div>
+                  ))}
+                  {pushDiag.lastError && (
+                    <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm sm:col-span-2">
+                      <span className="text-[var(--faint)]">Ultima eroare: </span><span className="text-[var(--rose-strong)]">{pushDiag.lastError}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6"><PwaInstallCard /></div>
+
+                <div className="mt-7 space-y-4">{notifications.map((item, index) => <div key={item.id} className="grid gap-3 md:grid-cols-[80px_1fr]"><div className="text-xs uppercase tracking-[.22em] text-[var(--faint)]">{index === 0 ? "Recent" : formatDate(item.created_at)}</div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"><p className="lux-label">{item.status || "in-app"}</p><p className="mt-2 font-serif text-2xl md:text-3xl">{item.title}</p><p className="mt-2 text-sm leading-7 text-[var(--muted)]">{item.message}</p></div></div>)}</div>
+              </section>
             )}
 
 
@@ -917,19 +1311,31 @@ export default function AccountPage() {
                 <p className="lux-label">Theme Engine</p>
                 <h2 className="editorial-title mt-3 text-5xl">Tema contului tău</h2>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)]">Alege vibe-ul care îți place. Se salvează pe dispozitivul tău și se aplică instant, fără să afecteze alte cliente sau dashboard-ul Antoniei.</p>
-                <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  {accentOptions.map((option) => (
-                    <button
-                      type="button"
-                      key={option.value}
-                      onClick={() => changeAccent(option.value)}
-                      className={`rounded-[1.5rem] border p-5 text-left transition hover:-translate-y-1 ${selectedAccent === option.value ? "border-[var(--rose)] bg-[var(--panel-strong)] text-[var(--text)] shadow-[0_0_34px_color-mix(in_srgb,var(--rose)_18%,transparent)]" : "border-[var(--line)] bg-[var(--panel)] text-[var(--muted)]"}`}
-                    >
-                      <span className="block font-serif text-3xl text-[var(--text)]">{option.label}</span>
-                      <span className="mt-3 block text-xs leading-5 text-[var(--muted)]">{option.description}</span>
-                      <span className="mt-5 inline-flex h-8 w-8 rounded-full border border-[var(--line)] bg-[var(--rose)] shadow-[0_0_24px_color-mix(in_srgb,var(--rose)_45%,transparent)]" />
-                    </button>
-                  ))}
+                <div className="mt-7 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-3 xl:grid-cols-4">
+                  {accentOptions.map((option) => {
+                    const active = selectedAccent === option.value;
+                    return (
+                      <button
+                        type="button"
+                        key={option.value}
+                        onClick={() => changeAccent(option.value)}
+                        aria-pressed={active}
+                        className={`flex h-full min-w-0 flex-col rounded-[1.3rem] border p-3.5 text-left transition sm:p-4 ${active ? "border-[var(--rose)] bg-[var(--panel-strong)] shadow-[0_0_28px_color-mix(in_srgb,var(--rose)_16%,transparent)]" : "border-[var(--line)] bg-[var(--panel)] hover:border-[color-mix(in_srgb,var(--rose)_40%,var(--line))]"}`}
+                      >
+                        <span className="flex items-start gap-2">
+                          <span
+                            className="mt-1.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-[var(--line)]"
+                            style={{ background: option.swatch, boxShadow: `0 0 12px ${option.swatch}66` }}
+                          />
+                          <span className="min-w-0 flex-1 break-words font-serif text-xl leading-tight text-[var(--text)] sm:text-2xl">{option.label}</span>
+                        </span>
+                        <span className="mt-2 line-clamp-2 text-[0.72rem] leading-4 text-[var(--muted)] sm:text-xs sm:leading-5">{option.description}</span>
+                        {active && (
+                          <span className="mt-auto pt-3 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[var(--rose-strong)]">● Activă</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             )}

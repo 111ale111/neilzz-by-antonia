@@ -15,6 +15,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/web-push": "^3.6.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.40.0",
@@ -24,7 +25,8 @@
     "react": "latest",
     "react-dom": "latest",
     "tailwind-merge": "^3.6.0",
-    "typescript": "latest"
+    "typescript": "latest",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.1",

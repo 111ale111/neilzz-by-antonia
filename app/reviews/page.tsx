@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Star, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, MessageSquarePlus, Star, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SiteHeader } from "@/components/site-header";
 
@@ -15,12 +16,6 @@ type Review = {
   created_at?: string | null;
   photo_url?: string | null;
 };
-
-const fallbackReviews: Review[] = [
-  { id: "r1", name: "Andreea", rating: 5, text: "Finish foarte curat și elegant. Se vede atenția la fiecare detaliu.", is_approved: true },
-  { id: "r2", name: "Maria", rating: 5, text: "Exact vibe-ul pe care îl voiam: feminin, simplu și premium.", is_approved: true },
-  { id: "r3", name: "Ioana", rating: 5, text: "Rezistență foarte bună și forma a ieșit perfect. Recomand cu drag.", is_approved: true },
-];
 
 function Stars({ rating }: { rating?: number | null }) {
   return (
@@ -36,6 +31,7 @@ export default function ReviewsPage() {
   const supabase = createClient();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadReviews() {
@@ -45,13 +41,12 @@ export default function ReviewsPage() {
         .eq("is_approved", true)
         .order("created_at", { ascending: false });
 
-      if (data && data.length > 0) setReviews(data as Review[]);
+      setReviews((data || []) as Review[]);
+      setLoading(false);
     }
 
     loadReviews();
   }, [supabase]);
-
-  const displayReviews = useMemo(() => (reviews.length > 0 ? reviews : fallbackReviews), [reviews]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[var(--bg)] px-5 pb-24 pt-28 text-[var(--text)] md:px-8 md:pt-32">
@@ -63,45 +58,62 @@ export default function ReviewsPage() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-[1320px]">
-        <section className="pb-12 pt-8 text-center md:pb-16 md:pt-12">
+        <section className="pb-8 pt-8 text-center md:pb-10 md:pt-12">
           <p className="lux-label">Review-uri verificate</p>
           <h1 className="editorial-title mx-auto mt-5 max-w-4xl text-6xl leading-[0.9] md:text-8xl">
             Cliente reale.
             <br /> Rezultate reale.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-[var(--muted)]">
-            Review-uri aprobate de Antonia, afișate curat și premium.
+            Aici apar doar review-urile reale aprobate din conturi verificate. Nu mai sunt afișate review-uri generate ca fallback.
           </p>
         </section>
 
-        <section className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {displayReviews.map((review, index) => (
-            <motion.article
-              key={review.id}
-              initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              viewport={{ once: true, margin: "-70px" }}
-              transition={{ duration: 0.72, delay: (index % 3) * 0.08 }}
-              className="lux-panel overflow-hidden rounded-[2.2rem] p-5"
-            >
-              {review.photo_url && (
-                <button type="button" onClick={() => setPreviewPhoto(review.photo_url || null)} className="mb-5 block w-full overflow-hidden rounded-[1.45rem] border border-[var(--line)] bg-[var(--panel-strong)]">
-                  <img src={review.photo_url} alt={review.name || "Review"} className="aspect-[4/3] w-full object-cover transition duration-500 hover:scale-105" />
-                </button>
-              )}
-
-              <Stars rating={review.rating} />
-              <p className="mt-7 text-xl leading-9 text-[var(--muted)]">“{review.text}”</p>
-
-              <div className="mt-9 flex items-center justify-between gap-4 border-t border-[var(--line)] pt-5">
-                <p className="font-serif text-2xl">{review.name || "Clientă"}</p>
-                <span className="inline-flex items-center gap-2 text-[0.62rem] uppercase tracking-[0.24em] text-[var(--faint)]">
-                  <CheckCircle2 className="h-4 w-4" /> verificat
-                </span>
-              </div>
-            </motion.article>
-          ))}
+        <section className="mx-auto mb-10 max-w-3xl rounded-[2.2rem] border border-[var(--line)] bg-[var(--panel)] p-5 text-center backdrop-blur-xl md:p-7">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-[var(--line)] bg-[var(--panel-strong)] text-[var(--rose-strong)]">
+            <MessageSquarePlus className="h-5 w-5" />
+          </div>
+          <h2 className="mt-4 font-serif text-4xl">Vrei să lași review?</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[var(--muted)]">Review-ul se trimite din contul tău, ca să apară verificat și premium după aprobare.</p>
+          <Link href="/account?tab=reviews" className="lux-action lux-action-soft mt-5 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold">
+            Lasă review verificat
+          </Link>
         </section>
+
+        {loading ? (
+          <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-7 text-center text-sm text-[var(--muted)]">Se încarcă review-urile...</div>
+        ) : reviews.length === 0 ? (
+          <div className="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-7 text-center text-sm text-[var(--muted)]">Încă nu există review-uri aprobate.</div>
+        ) : (
+          <section className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {reviews.map((review, index) => (
+              <motion.article
+                key={review.id}
+                initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
+                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                viewport={{ once: true, margin: "-70px" }}
+                transition={{ duration: 0.72, delay: (index % 3) * 0.08 }}
+                className="lux-panel overflow-hidden rounded-[2.2rem] p-5"
+              >
+                {review.photo_url && (
+                  <button type="button" onClick={() => setPreviewPhoto(review.photo_url || null)} className="mb-5 block w-full overflow-hidden rounded-[1.45rem] border border-[var(--line)] bg-[var(--panel-strong)]">
+                    <img src={review.photo_url} alt={review.name || "Review"} className="aspect-[4/3] w-full object-cover transition duration-500 hover:scale-105" />
+                  </button>
+                )}
+
+                <Stars rating={review.rating} />
+                <p className="mt-7 text-xl leading-9 text-[var(--muted)]">“{review.text}”</p>
+
+                <div className="mt-9 flex items-center justify-between gap-4 border-t border-[var(--line)] pt-5">
+                  <p className="font-serif text-2xl">{review.name || "Clientă"}</p>
+                  <span className="inline-flex items-center gap-2 text-[0.62rem] uppercase tracking-[0.24em] text-[var(--faint)]">
+                    <CheckCircle2 className="h-4 w-4" /> verificat
+                  </span>
+                </div>
+              </motion.article>
+            ))}
+          </section>
+        )}
       </div>
 
       <AnimatePresence>

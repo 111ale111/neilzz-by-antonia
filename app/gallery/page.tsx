@@ -57,7 +57,7 @@ export default function GaleriePage() {
     loadGalerie();
   }, []);
 
-  const displayItems = useMemo(() => (items.length > 0 ? items : fallbackGalerie), [items]);
+  const displayItems = useMemo(() => items, [items]);
   const activeItem = activeIndex === null ? null : displayItems[activeIndex];
 
   function goNext() {
@@ -125,11 +125,21 @@ export default function GaleriePage() {
           </p>
         </section>
 
+        {displayItems.length === 0 ? (
+          <section className="lux-panel mx-auto max-w-3xl rounded-[2.4rem] p-7 text-center md:p-10">
+            <p className="lux-label">Galerie reală</p>
+            <h2 className="editorial-title mt-4 text-5xl">Nu sunt poze publice încă.</h2>
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[var(--muted)]">Urcă lucrările reale din dashboard și ele apar automat aici și pe homepage.</p>
+            <Link href="/dashboard/gallery" className="lux-action lux-action-soft mt-7 inline-flex rounded-full px-6 py-3 text-sm font-semibold">Urcă poze</Link>
+          </section>
+        ) : (
         <section className="columns-1 gap-4 sm:columns-2 lg:columns-3">
           {displayItems.map((item, index) => (
-            <motion.button
+            <motion.article
               key={item.id}
-              type="button"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setActiveIndex(index); }}
               onClick={() => setActiveIndex(index)}
               initial={{ opacity: 0, y: 22, filter: "blur(10px)" }}
               whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -153,9 +163,10 @@ export default function GaleriePage() {
                   </span>
                 </div>
               </div>
-            </motion.button>
+            </motion.article>
           ))}
         </section>
+        )}
       </div>
 
       <AnimatePresence>

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { ArrowLeft, Bell, CalendarClock, Gift, Home, Sparkles, UserRound } from "lucide-react";
+import { NotificationComposer } from "@/components/admin/notification-composer";
 import { requireAdmin } from "@/lib/auth/admin";
 
 function formatDate(value?: string | null) {
@@ -81,6 +82,10 @@ export default async function DashboardNotificationsPage() {
             </div>
           </div>
         </header>
+
+        <div className="mt-8">
+          <NotificationComposer profiles={(profiles || []).map((profile) => ({ id: profile.id, email: profile.email, full_name: profile.full_name, notification_permission: profile.notification_permission }))} />
+        </div>
 
         <section className="mt-8 lux-panel rounded-[2.5rem] p-6 md:p-8">
           {groups.map((group) => (

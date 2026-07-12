@@ -20,7 +20,7 @@ const rewardMilestones = [
   { visits: 10, label: "25% OFF" },
   { visits: 15, label: "50% OFF" },
 ];
-function rankFor(visits: number) { if (visits >= 15) return { name: "Elite", full: "Clientă elite", mark: "✧◇✧" }; if (visits >= 10) return { name: "VIP", full: "Clientă VIP", mark: "◇" }; if (visits >= 5) return { name: "Regular", full: "Clientă regulară", mark: "✦" }; return { name: "Nouă", full: "Clientă nouă", mark: "○" }; }
+function rankFor(visits: number) { if (visits >= 15) return { name: "Elite", full: "Clientă elite", mark: "ELITE" }; if (visits >= 10) return { name: "VIP", full: "Clientă VIP", mark: "VIP" }; if (visits >= 5) return { name: "Regular", full: "Clientă regulară", mark: "REG" }; return { name: "Nouă", full: "Clientă nouă", mark: "NOU" }; }
 function unlockedReward(before: number, next: number) { return rewardMilestones.find((item) => before < item.visits && next >= item.visits); }
 function initials(name?: string | null, email?: string | null) { const s = (name || email || "neilzzbyanto").replace(/@.*/, ""); const p = s.split(/\s+/).filter(Boolean); return (p[0]?.[0] || "N").toUpperCase() + (p[1]?.[0] || "Z").toUpperCase(); }
 function buildDate(year: string, month: string, day: string) { return year && month && day ? `${year}-${month}-${day.padStart(2, "0")}` : ""; }

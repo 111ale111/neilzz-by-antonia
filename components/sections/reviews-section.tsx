@@ -2,96 +2,88 @@
 
 import { motion } from "framer-motion";
 import { BadgeCheck, Star } from "lucide-react";
-import { GlassCard } from "@/components/ui/glass-card";
-import { Badge } from "@/components/ui/badge";
-import { reviews } from "@/lib/mock-data";
-import type { Review } from "@/types";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-const swatchClass: Record<Review["swatch"], string> = {
-  blush: "bg-blush",
-  sand: "bg-sand",
-  rose: "bg-rose",
-  ink: "bg-ink dark:bg-pearl",
+type PublicReview = {
+  id: string;
+  name: string | null;
+  rating: number | null;
+  text: string;
+  photo_url?: string | null;
 };
 
-function ReviewCard({ review, index }: { review: Review; index: number }) {
+function ReviewCard({ review, index }: { review: PublicReview; index: number }) {
   return (
-    <motion.div
+    <motion.article
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.5, delay: (index % 3) * 0.08 }}
-      className="snap-center"
+      className="lux-panel snap-center rounded-[2rem] p-5"
     >
-      <GlassCard
-        hover
-        className="relative w-[19rem] overflow-hidden pl-7 sm:w-auto"
-      >
-        <span
-          aria-hidden="true"
-          className={`absolute inset-y-0 left-0 w-2.5 ${swatchClass[review.swatch]}`}
-        />
-
-        <div className="flex items-center justify-between">
-          <div className="flex gap-0.5 text-sand">
-            {Array.from({ length: review.rating }).map((_, i) => (
-              <Star key={i} className="h-3.5 w-3.5 fill-current" />
-            ))}
-          </div>
-          {review.verified && (
-            <Badge>
-              <BadgeCheck className="h-3 w-3" />
-              Verified
-            </Badge>
-          )}
+      {review.photo_url && <img src={review.photo_url} alt={review.name || "Review"} className="mb-5 aspect-[4/3] w-full rounded-[1.35rem] object-cover" />}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-0.5 text-[var(--rose-strong)]">
+          {Array.from({ length: review.rating || 5 }).map((_, i) => (
+            <Star key={i} className="h-4 w-4 fill-current" />
+          ))}
         </div>
-
-        <p className="mt-4 font-display text-[1.05rem] leading-snug text-ink dark:text-pearl">
-          “{review.quote}”
-        </p>
-
-        <div className="mt-5 flex items-center justify-between border-t border-ink/[0.06] pt-4 dark:border-pearl/[0.08]">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blush/50 font-body text-xs font-semibold text-rose dark:bg-blush/15">
-              {review.initial}
-            </span>
-            <div>
-              <p className="font-body text-sm font-medium text-ink dark:text-pearl">
-                {review.name}
-              </p>
-              <p className="font-body text-xs text-ink/45 dark:text-pearl/45">
-                {review.date}
-              </p>
-            </div>
-          </div>
-          <span className="font-body text-xs text-ink/45 dark:text-pearl/45">
-            {review.service}
-          </span>
-        </div>
-      </GlassCard>
-    </motion.div>
+        <span className="inline-flex items-center gap-2 text-[0.62rem] uppercase tracking-[0.24em] text-[var(--faint)]"><BadgeCheck className="h-4 w-4" /> verificat</span>
+      </div>
+      <p className="mt-5 text-base leading-8 text-[var(--muted)]">“{review.text}”</p>
+      <div className="mt-6 border-t border-[var(--line)] pt-4">
+        <p className="font-serif text-2xl text-[var(--text)]">{review.name || "Clientă"}</p>
+      </div>
+    </motion.article>
   );
 }
 
 export function ReviewsSection() {
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
+
+  useEffect(() => {
+    async function loadReviews() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("reviews")
+        .select("id,name,rating,text,photo_url")
+        .eq("is_approved", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      setReviews((data || []) as PublicReview[]);
+    }
+    loadReviews();
+  }, []);
+
   return (
     <section id="reviews" className="px-5 py-24 sm:px-8">
-      <div className="mx-auto max-w-content">
+      <div className="mx-auto max-w-[1200px]">
         <div className="mx-auto max-w-lg text-center">
-          <Badge>How Booking Works</Badge>
-          <h2 className="mt-4 font-display text-3xl text-ink dark:text-pearl sm:text-4xl">
-            Every review came from a real appointment.
+          <p className="lux-label">Review-uri verificate</p>
+          <h2 className="editorial-title mt-4 text-4xl text-[var(--text)] sm:text-5xl">
+            Cliente reale. Rezultate reale.
           </h2>
-          <p className="mt-3 font-body text-sm text-ink/60 dark:text-pearl/60 sm:text-base">
-            No incentives, no fine print — just the people who sat in the
-            chair.
+          <p className="mt-4 text-sm leading-7 text-[var(--muted)] sm:text-base">
+            Pe homepage apar doar review-uri reale aprobate din Supabase.
           </p>
         </div>
 
-        <div className="mt-12 -mx-5 flex gap-5 overflow-x-auto px-5 pb-4 [scrollbar-width:none] snap-x snap-mandatory sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
-          {reviews.map((review, i) => (
-            <ReviewCard key={review.id} review={review} index={i} />
-          ))}
+        {reviews.length > 0 ? (
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {reviews.map((review, i) => (
+              <ReviewCard key={review.id} review={review} index={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="mx-auto mt-12 max-w-xl rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 text-center text-sm text-[var(--muted)]">
+            Încă nu există review-uri aprobate. Primele review-uri reale vor apărea aici după aprobare.
+          </div>
+        )}
+
+        <div className="mt-8 text-center">
+          <Link href="/reviews" className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-5 py-3 text-sm font-semibold text-[var(--text)]">Vezi toate review-urile</Link>
         </div>
       </div>
     </section>

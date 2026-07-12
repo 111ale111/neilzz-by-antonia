@@ -2,7 +2,6 @@
 
 import { Moon, Sun } from "lucide-react";
 import * as React from "react";
-import { Button } from "@/components/ui/button";
 
 function getStoredTheme() {
   if (typeof window === "undefined") return "dark";
@@ -28,17 +27,19 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
-  if (!mounted) return <div className="h-11 w-11" aria-hidden="true" />;
+  const isDark = theme === "dark";
 
   return (
-    <Button
+    <button
       type="button"
-      variant="ghost"
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={isDark ? "Schimbă pe light mode" : "Schimbă pe dark mode"}
       onClick={toggleTheme}
-      className="h-11 w-11 border border-[var(--line)] bg-[var(--panel)] p-0 text-[var(--text)] backdrop-blur-xl hover:bg-[var(--panel-strong)]"
+      className="theme-pill-button"
     >
-      {theme === "dark" ? <Sun className="h-[1.1rem] w-[1.1rem]" /> : <Moon className="h-[1.1rem] w-[1.1rem]" />}
-    </Button>
+      <span className="grid h-8 w-8 place-items-center rounded-full border border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_70%,transparent)] text-[var(--rose-strong)]">
+        {mounted ? (isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <Sun className="h-4 w-4" />}
+      </span>
+      
+    </button>
   );
 }

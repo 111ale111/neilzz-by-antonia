@@ -2,7 +2,18 @@
 
 import { useEffect } from "react";
 
-const allowedAccents = new Set(["rose-gold", "champagne", "mocha", "sapphire", "amethyst"]);
+const allowedAccents = new Set([
+  "rose-gold",
+  "champagne",
+  "emerald",
+  "sapphire",
+  "bordeaux",
+  "amethyst",
+  "rose-paris",
+  "amber",
+  "turquoise",
+  "onyx",
+]);
 
 function applyAccent(accent: string) {
   const safeAccent = allowedAccents.has(accent) ? accent : "rose-gold";

@@ -212,6 +212,7 @@ export function SettingsManager() {
             <option value="active">Activ</option>
             <option value="limited">Booking limitat</option>
             <option value="vacation">Concediu</option>
+            <option value="closed">Închis temporar</option>
           </select>
           <button onClick={() => saveSettings()} disabled={loading} className="lux-action lux-action-soft inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50">
             <Save className="h-4 w-4" /> {loading ? "Se salvează..." : "Salvează setările"}

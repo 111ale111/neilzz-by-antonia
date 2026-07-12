@@ -3,6 +3,8 @@ import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { ThemeEngineRuntime } from "@/components/theme-engine-runtime";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { DailySpinGlobal } from "@/components/daily-spin-global";
+import { SiteMotionRuntime } from "@/components/site-motion-runtime";
 
 export const metadata: Metadata = {
   title: "neilzzbyanto",
@@ -32,7 +34,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ro" suppressHydrationWarning>
-      <body><ServiceWorkerRegister /><ThemeEngineRuntime /><AnalyticsTracker />{children}</body>
+      <body><SiteMotionRuntime /><ServiceWorkerRegister /><ThemeEngineRuntime /><AnalyticsTracker />{children}<DailySpinGlobal /></body>
     </html>
   );
 }

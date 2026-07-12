@@ -417,3 +417,986 @@ html[data-theme="light"] .neilzz-register-pill * { color: #fff8f1 !important; }
     text-wrap: balance;
   }
 }
+
+/* Stage 26: mobile-first premium account/dashboard upgrades */
+.guide-lux-button {
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line));
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--gold) 28%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-strong) 88%, var(--gold) 12%), color-mix(in srgb, var(--panel) 86%, var(--rose) 10%));
+  color: var(--text);
+  box-shadow: 0 14px 48px color-mix(in srgb, var(--gold) 15%, transparent), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+.verified-lux-badge,
+.rank-lux-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--rose) 36%, var(--line));
+  background: color-mix(in srgb, var(--panel-strong) 78%, var(--rose) 8%);
+  color: var(--rose-strong);
+  padding: .45rem .75rem;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  box-shadow: 0 0 28px color-mix(in srgb, var(--rose) 12%, transparent), inset 0 1px 0 rgba(255,255,255,.09);
+}
+
+.verified-lux-badge {
+  border-color: rgba(110, 231, 183, .28);
+  background: rgba(16, 185, 129, .10);
+  color: #bbf7d0;
+}
+
+html[data-theme="light"] .verified-lux-badge {
+  color: #047857;
+}
+
+.rank-orb {
+  display: grid;
+  height: 3.75rem;
+  width: 3.75rem;
+  place-items: center;
+  border-radius: 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line));
+  background:
+    radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--gold) 34%, transparent), transparent 48%),
+    linear-gradient(145deg, var(--panel-strong), var(--panel));
+  color: var(--rose-strong);
+  box-shadow: 0 18px 56px color-mix(in srgb, var(--gold) 12%, transparent), inset 0 1px 0 rgba(255,255,255,.14);
+}
+
+.reward-mini-card,
+.reward-milestone,
+.appointment-card,
+.premium-tile {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.reward-mini-card,
+.reward-milestone {
+  border-radius: 1.4rem;
+  padding: 1rem;
+}
+
+.reward-mini-card {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  color: var(--muted);
+}
+
+.reward-mini-card-unlocked,
+.reward-milestone-unlocked {
+  border-color: color-mix(in srgb, var(--gold) 46%, var(--line));
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 45%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  box-shadow: 0 18px 60px color-mix(in srgb, var(--gold) 10%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+.appointment-card {
+  border-radius: 1.65rem;
+  padding: 1.1rem;
+}
+
+.appointment-card-next {
+  border-color: color-mix(in srgb, var(--rose) 36%, var(--line));
+  background:
+    radial-gradient(circle at right top, color-mix(in srgb, var(--rose) 14%, transparent), transparent 36%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+}
+
+.premium-tile {
+  border-radius: 1.4rem;
+  padding: 1.25rem;
+  text-align: left;
+  color: var(--rose-strong);
+  transition: transform .24s ease, border-color .24s ease, background .24s ease;
+}
+
+.premium-tile:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--rose) 38%, var(--line));
+  background: var(--panel-strong);
+}
+
+.daily-wheel {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  width: min(100%, 22rem);
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--gold) 48%, var(--line));
+  background:
+    conic-gradient(from -18deg,
+      color-mix(in srgb, var(--rose) 42%, transparent) 0 45deg,
+      color-mix(in srgb, var(--gold) 35%, transparent) 45deg 90deg,
+      color-mix(in srgb, var(--panel-strong) 100%, transparent) 90deg 135deg,
+      color-mix(in srgb, var(--rose) 24%, transparent) 135deg 180deg,
+      color-mix(in srgb, var(--gold) 28%, transparent) 180deg 225deg,
+      color-mix(in srgb, var(--panel-strong) 100%, transparent) 225deg 270deg,
+      color-mix(in srgb, var(--rose) 32%, transparent) 270deg 315deg,
+      color-mix(in srgb, var(--gold) 24%, transparent) 315deg 360deg),
+    var(--panel);
+  box-shadow: 0 28px 100px color-mix(in srgb, var(--rose) 14%, transparent), inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+.daily-wheel::before {
+  content: "";
+  position: absolute;
+  inset: 1.1rem;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--cream) 20%, transparent);
+}
+
+.daily-wheel-center {
+  z-index: 1;
+  display: grid;
+  height: 7.5rem;
+  width: 7.5rem;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--rose-strong);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 18px 58px var(--shadow);
+}
+
+.daily-wheel-pointer {
+  position: absolute;
+  top: -.6rem;
+  height: 1.8rem;
+  width: 1.8rem;
+  transform: rotate(45deg);
+  border-radius: .35rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  background: var(--cream);
+  box-shadow: 0 10px 28px var(--shadow);
+}
+
+@media (max-width: 767px) {
+  .verified-lux-badge,
+  .rank-lux-badge { font-size: .62rem; letter-spacing: .12em; }
+  .daily-wheel { margin-inline: auto; }
+}
+
+/* V88 restore fixes: dynamic accent background + daily popup */
+:root {
+  --accent-bg-a: rgba(240, 167, 186, 0.16);
+  --accent-bg-b: rgba(217, 181, 111, 0.10);
+  --accent-bg-c: rgba(76, 7, 27, 0.28);
+}
+html[data-theme="light"] {
+  --accent-bg-a: rgba(184, 86, 118, 0.14);
+  --accent-bg-b: rgba(154, 107, 46, 0.10);
+  --accent-bg-c: rgba(255, 255, 255, 0.42);
+}
+html[data-accent="champagne"] { --accent-bg-a: rgba(228, 201, 135, .22); --accent-bg-b: rgba(240, 217, 154, .13); --accent-bg-c: rgba(70, 53, 22, .26); }
+html[data-accent="mocha"] { --accent-bg-a: rgba(199, 154, 120, .20); --accent-bg-b: rgba(201, 160, 111, .13); --accent-bg-c: rgba(59, 33, 24, .30); }
+html[data-accent="sapphire"] { --accent-bg-a: rgba(142, 184, 255, .20); --accent-bg-b: rgba(137, 167, 217, .13); --accent-bg-c: rgba(7, 31, 76, .32); }
+html[data-accent="amethyst"] { --accent-bg-a: rgba(199, 163, 255, .22); --accent-bg-b: rgba(189, 160, 232, .13); --accent-bg-c: rgba(43, 14, 77, .32); }
+html[data-theme="light"][data-accent="champagne"] { --accent-bg-a: rgba(154, 107, 46, .14); --accent-bg-b: rgba(228, 201, 135, .11); --accent-bg-c: rgba(255,255,255,.42); }
+html[data-theme="light"][data-accent="mocha"] { --accent-bg-a: rgba(131, 87, 57, .14); --accent-bg-b: rgba(199, 154, 120, .10); --accent-bg-c: rgba(255,255,255,.42); }
+html[data-theme="light"][data-accent="sapphire"] { --accent-bg-a: rgba(69, 112, 181, .13); --accent-bg-b: rgba(142, 184, 255, .10); --accent-bg-c: rgba(255,255,255,.42); }
+html[data-theme="light"][data-accent="amethyst"] { --accent-bg-a: rgba(126, 91, 180, .14); --accent-bg-b: rgba(199, 163, 255, .10); --accent-bg-c: rgba(255,255,255,.42); }
+
+.app-shell-bg {
+  background:
+    radial-gradient(circle at 10% 6%, var(--accent-bg-c), transparent 34%),
+    radial-gradient(circle at 86% 12%, var(--accent-bg-a), transparent 30%),
+    radial-gradient(circle at 52% 92%, var(--accent-bg-b), transparent 40%),
+    linear-gradient(180deg, var(--bg), var(--bg-soft) 56%, var(--bg)) !important;
+}
+.app-shell-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--rose) 12%, transparent), transparent 24%),
+    radial-gradient(circle at 80% 22%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 22%),
+    linear-gradient(120deg, transparent, rgba(255,255,255,.022), transparent);
+  opacity: .85;
+}
+
+.status-completed {
+  border-color: rgba(148, 163, 184, .22);
+  background: rgba(148, 163, 184, .09);
+  color: rgba(255,248,241,.72);
+  box-shadow: none;
+}
+.status-pending {
+  border-color: rgba(245, 158, 11, .36);
+  background: rgba(245, 158, 11, .10);
+  color: #fde68a;
+}
+html[data-theme="light"] .status-completed {
+  color: rgba(22,17,17,.62);
+  background: rgba(148, 163, 184, .13);
+}
+html[data-theme="light"] .status-pending { color: #92400e; }
+
+.account-next-card { min-height: 0; }
+.account-action-pill {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  padding: .72rem 1.15rem;
+  font-size: .875rem;
+  font-weight: 750;
+  color: var(--text);
+  backdrop-filter: blur(16px);
+  transition: transform .2s ease, background .2s ease;
+}
+.account-action-pill:hover { transform: translateY(-1px); background: var(--panel-strong); }
+
+.daily-floating-button {
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--line));
+  background:
+    radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--gold) 24%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-strong) 92%, var(--rose) 8%), color-mix(in srgb, var(--panel) 88%, var(--gold) 10%));
+  padding: .85rem 1rem;
+  color: var(--text);
+  font-size: .9rem;
+  font-weight: 850;
+  box-shadow: 0 20px 70px rgba(0,0,0,.42), 0 0 34px color-mix(in srgb, var(--rose) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.13);
+  backdrop-filter: blur(22px);
+}
+.daily-floating-button:hover { transform: translateY(-1px); }
+
+@keyframes dailySpinTest {
+  0% { transform: rotate(0deg) scale(1); }
+  70% { transform: rotate(920deg) scale(1.025); }
+  100% { transform: rotate(1080deg) scale(1); }
+}
+.daily-wheel-spinning { animation: dailySpinTest 1.2s cubic-bezier(.2,.95,.22,1) both; }
+
+@media (max-width: 767px) {
+  .daily-floating-button {
+    left: 50%;
+    right: auto;
+    bottom: calc(.8rem + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    padding-inline: 1.1rem;
+  }
+  .daily-floating-button:hover { transform: translateX(-50%) translateY(-1px); }
+}
+
+/* V89 polish */
+.theme-pill-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--rose) 26%, var(--line));
+  background:
+    radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--rose) 16%, transparent), transparent 44%),
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-strong) 90%, var(--rose) 8%), color-mix(in srgb, var(--panel) 88%, var(--gold) 7%));
+  padding: .38rem .9rem .38rem .4rem;
+  color: var(--text);
+  font-size: .86rem;
+  font-weight: 850;
+  box-shadow: 0 14px 46px color-mix(in srgb, var(--shadow) 90%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter: blur(20px);
+  transition: transform .22s ease, border-color .22s ease, background .22s ease;
+}
+.theme-pill-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--gold) 40%, var(--line));
+}
+.theme-pill-label {
+  display: inline-block;
+  letter-spacing: .02em;
+}
+
+.premium-hero-card {
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--rose) 13%, transparent), transparent 42%),
+    radial-gradient(circle at 100% 80%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 38%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 34px 120px var(--shadow);
+  backdrop-filter: blur(26px);
+}
+
+.app-shell-bg {
+  background:
+    radial-gradient(ellipse at 8% 12%, color-mix(in srgb, var(--wine) 44%, transparent), transparent 36%),
+    radial-gradient(ellipse at 86% 14%, color-mix(in srgb, var(--rose) 18%, transparent), transparent 32%),
+    radial-gradient(ellipse at 64% 88%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 40%),
+    linear-gradient(115deg, color-mix(in srgb, var(--bg) 92%, var(--wine) 8%), var(--bg-soft) 46%, var(--bg)) !important;
+}
+.app-shell-bg::before {
+  background:
+    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--rose) 13%, transparent), transparent 22%),
+    radial-gradient(circle at 76% 22%, color-mix(in srgb, var(--gold) 11%, transparent), transparent 24%),
+    radial-gradient(circle at 50% 56%, color-mix(in srgb, var(--rose) 7%, transparent), transparent 36%),
+    linear-gradient(120deg, transparent 0 22%, rgba(255,255,255,.026) 42%, transparent 64%);
+  opacity: .95;
+}
+.app-shell-bg::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px),
+    radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--rose) 7%, transparent), transparent 30%),
+    radial-gradient(circle at 74% 66%, color-mix(in srgb, var(--gold) 6%, transparent), transparent 34%);
+  background-size: 76px 76px, 76px 76px, 100% 100%, 100% 100%;
+  mask-image: radial-gradient(circle at center, black 0 58%, transparent 92%);
+  opacity: .72;
+}
+
+@media (max-width: 767px) {
+  .theme-pill-button {
+    min-height: 2.5rem;
+    padding: .32rem .68rem .32rem .35rem;
+    font-size: .76rem;
+  }
+  .theme-pill-button span:first-child { height: 1.75rem; width: 1.75rem; }
+}
+
+
+/* V90 home polish */
+.theme-pill-label { display: none !important; }
+.theme-pill-button {
+  min-width: 2.75rem;
+  padding: .38rem !important;
+  gap: 0 !important;
+}
+.theme-pill-button > span:first-child {
+  height: 2rem;
+  width: 2rem;
+}
+
+.home-lux-bg {
+  background:
+    radial-gradient(ellipse at 14% 10%, color-mix(in srgb, var(--wine) 58%, transparent), transparent 32%),
+    radial-gradient(ellipse at 86% 8%, color-mix(in srgb, var(--rose) 22%, transparent), transparent 28%),
+    radial-gradient(ellipse at 42% 44%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 36%),
+    radial-gradient(ellipse at 80% 88%, color-mix(in srgb, var(--rose) 10%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--bg) 92%, var(--wine) 8%), var(--bg-soft) 45%, var(--bg)) !important;
+}
+
+.home-aurora-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .86;
+  background:
+    conic-gradient(from 120deg at 20% 12%, transparent, color-mix(in srgb, var(--rose) 10%, transparent), transparent 34%),
+    conic-gradient(from 230deg at 86% 24%, transparent, color-mix(in srgb, var(--gold) 9%, transparent), transparent 32%),
+    linear-gradient(90deg, transparent 0 16%, rgba(255,255,255,.022) 32%, transparent 52% 100%);
+  filter: blur(.1px);
+  mask-image: radial-gradient(circle at 50% 44%, black 0 62%, transparent 96%);
+}
+
+.home-stat-card {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+  border-radius: 1.15rem;
+  padding: .9rem 1rem;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 700;
+  backdrop-filter: blur(18px);
+}
+
+.home-atelier-preview {
+  position: relative;
+  min-height: 34rem;
+  display: grid;
+  place-items: center;
+}
+
+.home-atelier-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(74px);
+  opacity: .74;
+}
+.home-atelier-orb-one { width: 18rem; height: 18rem; left: 4%; top: 12%; background: color-mix(in srgb, var(--rose) 22%, transparent); }
+.home-atelier-orb-two { width: 16rem; height: 16rem; right: 8%; bottom: 8%; background: color-mix(in srgb, var(--gold) 16%, transparent); }
+
+.home-atelier-card {
+  position: absolute;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--rose) 13%, transparent), transparent 42%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 34px 120px var(--shadow);
+  backdrop-filter: blur(26px);
+}
+.home-atelier-card-main {
+  left: 5%;
+  top: 8%;
+  width: min(77%, 39rem);
+  border-radius: 2.5rem;
+  padding: 2.2rem;
+}
+.home-atelier-card-float {
+  right: 1%;
+  top: 34%;
+  width: min(48%, 26rem);
+  border-radius: 2rem;
+  padding: 1.5rem;
+}
+.home-atelier-card-mini {
+  left: 35%;
+  bottom: 5%;
+  width: min(50%, 26rem);
+  border-radius: 2rem;
+  padding: 1.5rem;
+}
+.home-process-chip {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
+  border-radius: 9999px;
+  padding: .72rem .8rem;
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.home-instagram-shell {
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 16% 12%, color-mix(in srgb, var(--rose) 12%, transparent), transparent 34%),
+    radial-gradient(circle at 92% 80%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 38%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 34px 120px var(--shadow);
+  backdrop-filter: blur(26px);
+}
+.home-ig-preview-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 20rem;
+  border-radius: 2rem;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 35% 12%, color-mix(in srgb, var(--rose) 16%, transparent), transparent 36%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  padding: 1.55rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  transition: transform .22s ease, border-color .22s ease, background .22s ease;
+}
+.home-ig-preview-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--rose) 38%, var(--line));
+}
+.home-ig-preview-card::after {
+  content: "";
+  position: absolute;
+  right: -32%;
+  bottom: -24%;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+  filter: blur(48px);
+}
+.home-ig-dot {
+  display: inline-block;
+  height: .72rem;
+  width: .72rem;
+  border-radius: 9999px;
+  background: var(--rose-strong);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--rose) 70%, transparent);
+}
+
+@media (max-width: 1023px) {
+  .home-atelier-preview { min-height: 27rem; }
+  .home-atelier-card-main { left: 0; width: 86%; }
+  .home-atelier-card-float { right: 0; width: 58%; top: 44%; }
+  .home-atelier-card-mini { left: 22%; width: 70%; bottom: 0; }
+}
+
+@media (max-width: 767px) {
+  .theme-pill-button { min-width: 2.45rem; min-height: 2.45rem; }
+  .theme-pill-button > span:first-child { height: 1.75rem; width: 1.75rem; }
+  .home-atelier-preview { min-height: 33rem; margin-top: 1rem; }
+  .home-atelier-card-main { left: 0; right: 0; top: 0; width: 100%; padding: 1.35rem; border-radius: 1.8rem; }
+  .home-atelier-card-float { left: 8%; right: auto; top: 47%; width: 92%; padding: 1.1rem; border-radius: 1.55rem; }
+  .home-atelier-card-mini { left: 0; bottom: 0; width: 76%; padding: 1.1rem; border-radius: 1.55rem; }
+  .home-ig-preview-card { min-height: 14rem; }
+}
+
+/* V91: global daily spin, stronger dynamic background, cleaner home */
+.theme-pill-button {
+  font-size: 0 !important;
+  padding: .38rem !important;
+  min-width: 2.85rem !important;
+  min-height: 2.85rem !important;
+}
+.theme-pill-button > span:first-child {
+  margin: 0 !important;
+}
+
+.app-shell-bg,
+.home-lux-bg,
+.admin-shell {
+  background:
+    radial-gradient(ellipse at 8% 6%, color-mix(in srgb, var(--wine) 58%, transparent), transparent 34%),
+    radial-gradient(ellipse at 88% 12%, color-mix(in srgb, var(--rose) 24%, transparent), transparent 32%),
+    radial-gradient(ellipse at 72% 52%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 36%),
+    radial-gradient(ellipse at 28% 82%, color-mix(in srgb, var(--rose) 10%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--bg) 86%, var(--wine) 14%), var(--bg-soft) 42%, var(--bg)) !important;
+}
+.app-shell-bg::before,
+.home-lux-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 0 18%, rgba(255,255,255,.034) 34%, transparent 49% 100%),
+    conic-gradient(from 140deg at 22% 22%, transparent, color-mix(in srgb, var(--rose) 16%, transparent), transparent 34%),
+    conic-gradient(from 260deg at 82% 18%, transparent, color-mix(in srgb, var(--gold) 13%, transparent), transparent 33%),
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--rose) 8%, transparent), transparent 36%);
+  opacity: .98;
+  mask-image: radial-gradient(circle at 50% 45%, black 0 72%, transparent 100%);
+}
+.home-aurora-layer::before,
+.home-aurora-layer::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: .62;
+}
+.home-aurora-layer::before {
+  left: 10%;
+  top: 24%;
+  width: 28rem;
+  height: 20rem;
+  background: color-mix(in srgb, var(--rose) 18%, transparent);
+}
+.home-aurora-layer::after {
+  right: 12%;
+  top: 18%;
+  width: 30rem;
+  height: 22rem;
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+}
+
+.home-atelier-preview-v91 {
+  min-height: 35rem;
+  isolation: isolate;
+}
+.home-atelier-glow {
+  position: absolute;
+  z-index: 0;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: .76;
+}
+.home-atelier-glow-a { left: 6%; top: 6%; width: 23rem; height: 18rem; background: color-mix(in srgb, var(--rose) 19%, transparent); }
+.home-atelier-glow-b { right: 5%; bottom: 8%; width: 24rem; height: 18rem; background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.home-showcase-card {
+  position: absolute;
+  z-index: 1;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--rose) 13%, transparent), transparent 42%),
+    radial-gradient(circle at 95% 80%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 38%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 34px 120px var(--shadow);
+  backdrop-filter: blur(26px);
+}
+.home-showcase-main {
+  left: 3%;
+  top: 4%;
+  width: min(78%, 41rem);
+  min-height: 18rem;
+  border-radius: 2.6rem;
+  padding: 2.2rem;
+}
+.home-showcase-booking {
+  right: 1%;
+  top: 34%;
+  width: min(46%, 25rem);
+  border-radius: 2rem;
+  padding: 1.45rem;
+}
+.home-showcase-rank {
+  left: 28%;
+  bottom: 6%;
+  width: min(58%, 31rem);
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border-radius: 2rem;
+  padding: 1.45rem;
+}
+
+.home-instagram-shell {
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--rose) 16%, transparent), transparent 36%),
+    radial-gradient(circle at 92% 72%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-strong) 92%, var(--rose) 6%), var(--panel)) !important;
+}
+.home-instagram-post {
+  position: relative;
+  min-height: 19rem;
+  overflow: hidden;
+  border-radius: 1.8rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 80px color-mix(in srgb, var(--shadow) 70%, transparent);
+}
+.home-instagram-post-featured {
+  min-height: 25rem;
+  grid-column: span 2;
+  grid-row: span 2;
+}
+.home-instagram-empty,
+.home-instagram-profile-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2rem;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--rose) 14%, transparent), transparent 42%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+  padding: 1.7rem;
+  min-height: 18rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+.home-instagram-profile-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: transform .22s ease, border-color .22s ease;
+}
+.home-instagram-profile-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--rose) 38%, var(--line));
+}
+
+@media (max-width: 1023px) {
+  .home-showcase-main { left: 0; width: 86%; }
+  .home-showcase-booking { right: 0; width: 58%; top: 45%; }
+  .home-showcase-rank { left: 12%; width: 84%; bottom: 0; }
+}
+@media (max-width: 767px) {
+  .home-atelier-preview-v91 { min-height: 35rem; margin-top: 1.5rem; }
+  .home-showcase-main { left: 0; right: 0; top: 0; width: 100%; padding: 1.35rem; border-radius: 1.8rem; }
+  .home-showcase-booking { left: 8%; right: auto; top: 50%; width: 92%; padding: 1.1rem; border-radius: 1.55rem; }
+  .home-showcase-rank { left: 0; bottom: 0; width: 100%; padding: 1.1rem; border-radius: 1.55rem; }
+  .home-instagram-post-featured { grid-column: auto; grid-row: auto; min-height: 19rem; }
+  .daily-floating-button {
+    bottom: calc(5.15rem + env(safe-area-inset-bottom)) !important;
+    z-index: 80;
+  }
+}
+
+/* =========================================================
+   MAISON LUX — 10 full palettes (background + accent)
+   Each accent overrides the complete look so the theme is
+   consistent regardless of the light/dark toggle.
+   ========================================================= */
+
+/* Shared readable base for all DARK maison palettes */
+html[data-accent="champagne"],
+html[data-accent="emerald"],
+html[data-accent="sapphire"],
+html[data-accent="bordeaux"],
+html[data-accent="amethyst"],
+html[data-accent="rose-paris"],
+html[data-accent="amber"],
+html[data-accent="turquoise"],
+html[data-accent="onyx"] {
+  --text: #fff8f1;
+  --muted: rgba(255, 248, 241, 0.64);
+  --faint: rgba(255, 248, 241, 0.36);
+  --line: rgba(255, 248, 241, 0.13);
+  --panel: rgba(255, 247, 240, 0.055);
+  --panel-strong: rgba(255, 247, 240, 0.095);
+  --cream: #fff8f1;
+  --shadow: rgba(0, 0, 0, 0.58);
+}
+
+/* 1 — Aur de Șampanie */
+html[data-accent="champagne"] {
+  --bg: #0a0a0c; --bg-soft: #16141a;
+  --rose: #c9a86a; --rose-strong: #ffe7a8; --wine: #463516; --gold: #f0d99a;
+  --accent-bg-a: rgba(201, 168, 106, 0.22);
+  --accent-bg-b: rgba(240, 217, 154, 0.13);
+  --accent-bg-c: rgba(70, 53, 22, 0.5);
+}
+
+/* 2 — Smarald Imperial */
+html[data-accent="emerald"] {
+  --bg: #04120d; --bg-soft: #0a2118;
+  --rose: #3ed6a3; --rose-strong: #b8f5df; --wine: #0a2118; --gold: #6fe6c1;
+  --accent-bg-a: rgba(62, 214, 163, 0.18);
+  --accent-bg-b: rgba(111, 230, 193, 0.12);
+  --accent-bg-c: rgba(10, 33, 24, 0.55);
+}
+
+/* 3 — Safir de Miezul Nopții */
+html[data-accent="sapphire"] {
+  --bg: #050810; --bg-soft: #0b1230;
+  --rose: #7ba3ff; --rose-strong: #c9dcff; --wine: #0b1230; --gold: #89a7d9;
+  --accent-bg-a: rgba(123, 163, 255, 0.20);
+  --accent-bg-b: rgba(137, 167, 217, 0.13);
+  --accent-bg-c: rgba(11, 18, 48, 0.55);
+}
+
+/* 4 — Bordeaux Vintage */
+html[data-accent="bordeaux"] {
+  --bg: #120507; --bg-soft: #2a0c14;
+  --rose: #e06a84; --rose-strong: #ffc0cf; --wine: #2a0c14; --gold: #e8a0b0;
+  --accent-bg-a: rgba(224, 106, 132, 0.20);
+  --accent-bg-b: rgba(232, 160, 176, 0.12);
+  --accent-bg-c: rgba(42, 12, 20, 0.55);
+}
+
+/* 5 — Ametist Regal */
+html[data-accent="amethyst"] {
+  --bg: #0b0614; --bg-soft: #1c0f33;
+  --rose: #b78aff; --rose-strong: #e0c8ff; --wine: #1c0f33; --gold: #cdb0f0;
+  --accent-bg-a: rgba(183, 138, 255, 0.22);
+  --accent-bg-b: rgba(205, 176, 240, 0.13);
+  --accent-bg-c: rgba(28, 15, 51, 0.55);
+}
+
+/* 6 — Aur Roz Parizian */
+html[data-accent="rose-paris"] {
+  --bg: #160d0e; --bg-soft: #2e1a1c;
+  --rose: #f0b7b0; --rose-strong: #ffe0dc; --wine: #2e1a1c; --gold: #f0cbb0;
+  --accent-bg-a: rgba(240, 183, 176, 0.20);
+  --accent-bg-b: rgba(240, 203, 176, 0.12);
+  --accent-bg-c: rgba(46, 26, 28, 0.55);
+}
+
+/* 7 — Chihlimbar de Toscana */
+html[data-accent="amber"] {
+  --bg: #120a03; --bg-soft: #2a1706;
+  --rose: #f0a94f; --rose-strong: #ffd39a; --wine: #2a1706; --gold: #f5c56f;
+  --accent-bg-a: rgba(240, 169, 79, 0.20);
+  --accent-bg-b: rgba(245, 197, 111, 0.13);
+  --accent-bg-c: rgba(42, 23, 6, 0.55);
+}
+
+/* 8 — Turcoaz de Riviera */
+html[data-accent="turquoise"] {
+  --bg: #031012; --bg-soft: #082327;
+  --rose: #4fdbe4; --rose-strong: #b4f5f9; --wine: #082327; --gold: #6fe0e6;
+  --accent-bg-a: rgba(79, 219, 228, 0.20);
+  --accent-bg-b: rgba(111, 224, 230, 0.12);
+  --accent-bg-c: rgba(8, 35, 39, 0.55);
+}
+
+/* 9 — Onix & Platină */
+html[data-accent="onyx"] {
+  --bg: #050506; --bg-soft: #131418;
+  --rose: #d6d9e0; --rose-strong: #f4f5f7; --wine: #131418; --gold: #c9ccd4;
+  --accent-bg-a: rgba(214, 217, 224, 0.16);
+  --accent-bg-b: rgba(201, 204, 214, 0.10);
+  --accent-bg-c: rgba(19, 20, 24, 0.6);
+}
+
+/* ---------------------------------------------------------
+   CLEAN maison background — replaces the muddy wine blobs
+   with a deep base + vivid accent glow, driven by each
+   theme's own variables. Higher specificity + !important so
+   it wins over the earlier V91 .app-shell-bg rules.
+   --------------------------------------------------------- */
+/* The themed gradient lives on <body> so the animated particle canvas
+   (fixed, z-index 0) can sit above it, while page wrappers stay
+   transparent and hold content above the canvas (z-index 1). */
+html[data-accent] body {
+  background:
+    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--rose) 26%, transparent) 0%, transparent 46%),
+    radial-gradient(circle at 84% 76%, color-mix(in srgb, var(--rose) 17%, transparent) 0%, transparent 52%),
+    radial-gradient(circle at 66% 6%, color-mix(in srgb, var(--gold) 15%, transparent) 0%, transparent 44%),
+    radial-gradient(ellipse at 30% -14%, var(--bg-soft) 0%, var(--bg) 62%),
+    var(--bg);
+}
+html[data-accent] .app-shell-bg,
+html[data-accent] .home-lux-bg,
+html[data-accent] .admin-shell,
+html[data-accent] main.min-h-screen {
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Animated ambient particle layer */
+#lux-living-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .9;
+}
+@media (prefers-reduced-motion: reduce) {
+  #lux-living-bg { opacity: .5; }
+}
+/* Re-tune the atmospheric overlay so it glows instead of muddies */
+html[data-accent] .app-shell-bg::before,
+html[data-accent] .home-lux-bg::before {
+  background:
+    conic-gradient(from 140deg at 22% 22%, transparent, color-mix(in srgb, var(--rose) 20%, transparent), transparent 34%),
+    conic-gradient(from 260deg at 82% 18%, transparent, color-mix(in srgb, var(--gold) 16%, transparent), transparent 33%),
+    radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--rose) 10%, transparent), transparent 40%) !important;
+  opacity: .9;
+  mask-image: radial-gradient(circle at 50% 42%, black 0 70%, transparent 100%);
+}
+
+/* =========================================================
+   MICRO-MOTION — elegant loading screen + scroll reveals
+   ========================================================= */
+
+/* Loading screen */
+.lux-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--rose) 14%, transparent), transparent 55%),
+    radial-gradient(ellipse at 30% -10%, var(--bg-soft) 0%, var(--bg) 60%),
+    var(--bg);
+  transition: opacity .8s ease, visibility .8s ease;
+}
+.lux-loader[data-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.lux-loader-inner {
+  display: grid;
+  place-items: center;
+  gap: 1.4rem;
+  animation: luxLoaderIn 1s cubic-bezier(.2,.8,.2,1) both;
+}
+.lux-loader-logo {
+  width: clamp(120px, 22vw, 190px);
+  height: auto;
+  filter: drop-shadow(0 0 34px color-mix(in srgb, var(--rose) 42%, transparent));
+  animation: luxLogoBreath 3.2s ease-in-out infinite;
+}
+.lux-loader-ring {
+  position: relative;
+  height: 3px;
+  width: min(52vw, 220px);
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--line) 100%, transparent);
+}
+.lux-loader-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--rose), color-mix(in srgb, var(--gold) 90%, transparent), transparent);
+  animation: luxSweep 1.5s ease-in-out infinite;
+}
+.lux-loader-label {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .5em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding-left: .5em;
+}
+@keyframes luxLoaderIn {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes luxLogoBreath {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 26px color-mix(in srgb, var(--rose) 34%, transparent)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 44px color-mix(in srgb, var(--rose) 55%, transparent)); }
+}
+@keyframes luxSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Scroll reveal */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1);
+  will-change: opacity, transform;
+}
+[data-reveal].reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-loader-logo,
+  .lux-loader-ring::after { animation: none !important; }
+  [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
+}
+
+/* =========================================================
+   V93 — Elimină complet luminile triunghiulare / beam-urile
+   decorative (conic-gradient, benzi diagonale, grilă) din tot
+   site-ul. Păstrăm doar: gradientul temei (pe body), grain
+   discret (.lux-noise) și particulele + glow-uri difuze.
+   ========================================================= */
+.home-aurora-layer,
+.home-aurora-layer::before,
+.home-aurora-layer::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+.app-shell-bg::before,
+.app-shell-bg::after,
+.home-lux-bg::before,
+.home-lux-bg::after,
+html[data-accent] .app-shell-bg::before,
+html[data-accent] .home-lux-bg::before {
+  content: none !important;
+  background: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  filter: none !important;
+}
+
+/* Perf: fără backdrop-blur uriaș pe body-ul de bază */
+body::before { display: none !important; }

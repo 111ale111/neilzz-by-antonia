@@ -1,19 +1,21 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { ArrowUpRight, CalendarDays, Camera, ClipboardList, Gift, Home, LogOut, Settings, Star, UserRound, UsersRound } from "lucide-react";
+import { ArrowUpRight, BellRing, CalendarDays, Camera, ClipboardList, Gift, Home, LineChart, LogOut, Settings, Star, UserRound, UsersRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/admin";
-import { DashboardAnalytics } from "@/components/admin/dashboard-analytics";
 
 const cards = [
   { href: "/dashboard/clients", title: "Cliente", text: "Conturi, vizite, activări și notițe private.", icon: UsersRound },
-  { href: "/dashboard/calendar", title: "Calendar", text: "Vezi programările următoare, grupate frumos pe zile.", icon: ClipboardList },
-  { href: "/dashboard/appointments", title: "Programare nouă", text: "Adaugă rapid o programare nouă pentru o clientă.", icon: CalendarDays },
-  { href: "/dashboard/reviews", title: "Review-uri", text: "Aprobă review-uri și pozele trimise de cliente.", icon: Star },
-  { href: "/dashboard/rewards", title: "Vouchere", text: "Verifică reward-uri și marchează codurile folosite.", icon: Gift },
-  { href: "/dashboard/gallery", title: "Galerie", text: "Lucrări publice și imagini salvabile în inspirații.", icon: Camera },
-  { href: "/dashboard/booking", title: "Booking", text: "Status public pentru disponibilitate și concediu.", icon: CalendarDays },
-  { href: "/dashboard/settings", title: "Setări", text: "Featured sections și statusul aplicației.", icon: Settings },
+  { href: "/dashboard/calendar", title: "Calendar", text: "Programările următoare, grupate pe zile.", icon: ClipboardList },
+  { href: "/dashboard/appointments", title: "Programare nouă", text: "Adaugă rapid o programare nouă.", icon: CalendarDays },
+  { href: "/dashboard/notifications", title: "Notificări push", text: "Trimite push pe telefon, instant sau programat.", icon: BellRing },
+  { href: "/dashboard/reviews", title: "Review-uri", text: "Aprobă review-uri și pozele trimise.", icon: Star },
+  { href: "/dashboard/rewards", title: "Vouchere", text: "Verifică reward-uri și coduri active.", icon: Gift },
+  { href: "/dashboard/gift-cards", title: "Carduri cadou", text: "Generează și gestionează carduri cadou.", icon: Gift },
+  { href: "/dashboard/gallery", title: "Galerie", text: "Lucrări publice și inspirații reale.", icon: Camera },
+  { href: "/dashboard/booking", title: "Programare", text: "Status public: disponibil, limitat, concediu.", icon: CalendarDays },
+  { href: "/dashboard/settings", title: "Setări", text: "Theme engine și status aplicație.", icon: Settings },
+  { href: "/dashboard/analytics", title: "Analytics", text: "Pagina separată pentru statistici complete.", icon: LineChart },
 ];
 
 function formatDate(value: string) {
@@ -26,11 +28,12 @@ export default async function DashboardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
-  const [{ count: pendingReviews }, { count: activeRewards }, { count: tomorrowAppointments }, appointmentsRes, profilesRes] = await Promise.all([
+  const [{ count: pendingReviews }, { count: activeRewards }, { count: tomorrowAppointments }, { count: scheduledNotifications }, appointmentsRes, profilesRes] = await Promise.all([
     supabase.from("reviews").select("id", { count: "exact", head: true }).eq("is_approved", false),
     supabase.from("client_rewards").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("client_appointments").select("id", { count: "exact", head: true }).eq("appointment_date", tomorrow),
-    supabase.from("client_appointments").select("id,client_id,appointment_date,appointment_time,status,custom_note,note").gte("appointment_date", today).eq("status", "upcoming").order("appointment_date", { ascending: true }).order("appointment_time", { ascending: true }).limit(8),
+    supabase.from("client_notifications").select("id", { count: "exact", head: true }).eq("status", "scheduled"),
+    supabase.from("client_appointments").select("id,client_id,appointment_date,appointment_time,status,custom_note,note").gte("appointment_date", today).order("appointment_date", { ascending: true }).order("appointment_time", { ascending: true }).limit(6),
     supabase.from("profiles").select("id,full_name,email"),
   ]);
 
@@ -41,7 +44,7 @@ export default async function DashboardPage() {
   }, {});
 
   return (
-    <main className="admin-shell px-5 py-7 md:px-8 md:py-10">
+    <main className="admin-shell app-shell-bg px-5 py-7 md:px-8 md:py-10">
       <div className="lux-noise" />
       <div className="relative z-10 mx-auto max-w-6xl">
         <header className="lux-panel overflow-hidden rounded-[2.8rem] p-7 md:p-10">
@@ -49,7 +52,7 @@ export default async function DashboardPage() {
             <div>
               <p className="lux-label">Acces privat</p>
               <h1 className="editorial-title mt-4 text-5xl leading-[0.92] md:text-7xl">Panou Antonia</h1>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--muted)] md:text-base">Tot ce contează într-un singur loc: agenda următoare, review-uri, vouchere și controlul clientelor.</p>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--muted)] md:text-base">Dashboard curat: esențialele sus, analytics separat, notificări push pregătite pentru telefon.</p>
               <p className="mt-3 text-xs text-[var(--faint)]">Logat ca {user.email}</p>
             </div>
             <div className="flex flex-wrap gap-3 lg:justify-end">
@@ -60,18 +63,17 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        <DashboardAnalytics supabase={supabase} />
-
-        <section className="mt-8 grid gap-4 md:grid-cols-3">
+        <section className="mt-8 grid gap-4 md:grid-cols-4">
           <Link href="/dashboard/reviews" className="lux-panel rounded-[2rem] p-6 transition hover:-translate-y-1"><p className="lux-label">Review-uri</p><p className="mt-4 font-serif text-6xl">{pendingReviews || 0}</p><p className="mt-2 text-sm text-[var(--muted)]">în așteptare</p></Link>
           <Link href="/dashboard/calendar" className="lux-panel rounded-[2rem] p-6 transition hover:-translate-y-1"><p className="lux-label">Mâine</p><p className="mt-4 font-serif text-6xl">{tomorrowAppointments || 0}</p><p className="mt-2 text-sm text-[var(--muted)]">programări</p></Link>
           <Link href="/dashboard/rewards" className="lux-panel rounded-[2rem] p-6 transition hover:-translate-y-1"><p className="lux-label">Vouchere</p><p className="mt-4 font-serif text-6xl">{activeRewards || 0}</p><p className="mt-2 text-sm text-[var(--muted)]">active</p></Link>
+          <Link href="/dashboard/notifications" className="lux-panel rounded-[2rem] p-6 transition hover:-translate-y-1"><p className="lux-label">Push</p><p className="mt-4 font-serif text-6xl">{scheduledNotifications || 0}</p><p className="mt-2 text-sm text-[var(--muted)]">programate</p></Link>
         </section>
 
         <section className="mt-8 lux-panel rounded-[2.4rem] p-6 md:p-8">
           <div className="flex items-end justify-between gap-4"><div><p className="lux-label">Calendar</p><h2 className="mt-3 font-serif text-4xl">Programările următoare</h2></div><Link href="/dashboard/calendar" className="rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--muted)]">Vezi calendar</Link></div>
           <div className="mt-7 space-y-6">
-            {Object.entries(agenda).map(([date, items]) => (
+            {Object.entries(agenda).slice(0, 3).map(([date, items]) => (
               <div key={date}>
                 <p className="lux-label">{formatDate(date)}</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">

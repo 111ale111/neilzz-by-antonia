@@ -10,9 +10,10 @@ import { createClient } from "@/lib/supabase/client";
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/gallery", label: "Galerie" },
+  { href: "/servicii-preturi", label: "Servicii & Prețuri" },
   { href: "/reviews", label: "Review-uri" },
-  { href: "/booking", label: "Booking" },
-  { href: "/about", label: "About" },
+  { href: "/booking", label: "Programare" },
+  { href: "/about", label: "Despre" },
 ];
 
 type HeaderRole = "loading" | "guest" | "client" | "admin";
@@ -110,11 +111,11 @@ export function SiteHeader() {
           <img
             src={logoUrl}
             alt="neilzzbyanto"
-            className="h-14 w-auto object-contain drop-shadow-[0_0_20px_rgba(247,192,207,0.24)] md:h-16"
+            className="h-11 w-auto object-contain drop-shadow-[0_0_20px_rgba(247,192,207,0.24)] md:h-14"
           />
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm text-[var(--muted)] md:flex">
+        <nav className="hidden items-center gap-5 text-sm text-[var(--muted)] lg:gap-7 md:flex">
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href} className="transition hover:text-[var(--text)]">
               {link.label}
