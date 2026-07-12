@@ -1441,3 +1441,34 @@ img, svg, video { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .account-enter { animation: none !important; }
 }
+
+/* =========================================================
+   V96 — Polish mobil /account: FAB Daily Spin compact,
+   glow avatar, safe-area, fără suprapunere peste conținut.
+   ========================================================= */
+@media (max-width: 767px) {
+  .daily-floating-button {
+    left: auto !important;
+    right: calc(14px + env(safe-area-inset-right)) !important;
+    bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+    transform: none !important;
+    min-width: 0 !important;
+    padding: .7rem !important;
+    gap: 0 !important;
+    z-index: 60 !important;
+  }
+  .daily-floating-button:hover { transform: translateY(-1px) !important; }
+  .daily-floating-button > span { display: none !important; }
+  /* Pe paginile cu bară mobilă jos (home), ridică FAB-ul deasupra ei. */
+  body:has(.neilzz-mobile-nav) .daily-floating-button {
+    bottom: calc(5.4rem + env(safe-area-inset-bottom)) !important;
+  }
+  /* Spațiu jos ca FAB-ul să nu acopere ultimul conținut din /account. */
+  main.app-shell-bg { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+}
+
+/* Glow avatar puțin mai vizibil, dar discret */
+.avatar-glow {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rose) 34%, transparent),
+    0 0 34px color-mix(in srgb, var(--rose) 40%, transparent);
+}

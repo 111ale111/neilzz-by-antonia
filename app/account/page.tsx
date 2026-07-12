@@ -306,6 +306,7 @@ export default function AccountPage() {
   const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
   const [pushDiag, setPushDiag] = useState<PushDiag>({ secureContext: false, origin: "", permission: "—", sw: false, swVersion: "v20", browserSub: false, supabaseSub: false, endpointPreview: "—", device: "—", vapid: false, lastLocalTest: "—", lastRealTest: "—", lastError: "" });
   const [pushDevices, setPushDevices] = useState<PushDevice[]>([]);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [code, setCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -435,6 +436,19 @@ export default function AccountPage() {
     if (profile?.id) refreshPushDiag();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
+
+  // Blochează scroll-ul din spate cât timp drawer-ul „Mai multe" e deschis.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.style.overflow = moreOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [moreOpen]);
+
+  function selectTab(id: string) {
+    setActiveTab(id);
+    setMoreOpen(false);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   useEffect(() => {
     if (!loading && typeof window !== "undefined" && !window.localStorage.getItem("neilzz-quick-guide-seen")) {
@@ -1165,11 +1179,34 @@ export default function AccountPage() {
           </div>
         </header>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[230px_1fr] lg:items-start">
-          <aside className="lux-panel h-fit rounded-[2rem] p-2.5 lg:sticky lg:top-6 lg:self-start">
-            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 lg:grid lg:gap-1 lg:overflow-visible lg:pb-0">
+        {/* Nav mobil: 4 principale + „Mai multe" */}
+        {(() => {
+          const mainIds = ["overview", "appointments", "rewards"];
+          const mainInDrawer = !mainIds.includes(activeTab);
+          const mainTabs = [
+            { id: "overview", label: "Acasă" },
+            { id: "appointments", label: "Programări" },
+            { id: "rewards", label: "Rewards" },
+          ];
+          return (
+            <div className="mt-6 grid grid-cols-4 gap-2 lg:hidden">
+              {mainTabs.map((t) => (
+                <button key={t.id} onClick={() => selectTab(t.id)} className={`min-h-[44px] rounded-xl border px-2 py-2 text-center text-xs font-semibold ${activeTab === t.id ? "border-[var(--rose)] bg-[var(--panel-strong)] text-[var(--text)]" : "border-[var(--line)] bg-[var(--panel)] text-[var(--muted)]"}`}>
+                  {t.label}
+                </button>
+              ))}
+              <button onClick={() => setMoreOpen(true)} className={`min-h-[44px] rounded-xl border px-2 py-2 text-center text-xs font-semibold ${mainInDrawer ? "border-[var(--rose)] bg-[var(--panel-strong)] text-[var(--text)]" : "border-[var(--line)] bg-[var(--panel)] text-[var(--muted)]"}`}>
+                Mai multe
+              </button>
+            </div>
+          );
+        })()}
+
+        <div className="mt-4 grid gap-6 lg:mt-6 lg:grid-cols-[230px_1fr] lg:items-start">
+          <aside className="hidden lux-panel h-fit rounded-[2rem] p-2.5 lg:sticky lg:top-6 lg:block lg:self-start">
+            <div className="grid gap-1">
               {tabs.map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? "shrink-0 rounded-xl bg-[var(--panel-strong)] px-4 py-2.5 text-left text-sm font-semibold text-[var(--text)] shadow-[inset_0_1px_0_rgba(255,255,255,.08)] lg:w-full" : "shrink-0 rounded-xl px-4 py-2.5 text-left text-sm text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)] lg:w-full"}>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? "w-full rounded-xl bg-[var(--panel-strong)] px-4 py-2.5 text-left text-sm font-semibold text-[var(--text)] shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" : "w-full rounded-xl px-4 py-2.5 text-left text-sm text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)]"}>
                   {tab.label}
                 </button>
               ))}
@@ -1222,9 +1259,11 @@ export default function AccountPage() {
                     </div>
                   </div>
                   <p className="mt-4 text-sm text-[var(--muted)]">{nextReward ? `Încă ${Math.max(nextReward.visits - visitCount, 0)} vizite până la ${nextReward.label}.` : "Ai deblocat toate recompensele disponibile."}</p>
-                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[var(--panel)]">
-                    <div className="h-full rounded-full bg-[var(--rose)] transition-[width] duration-700" style={{ width: `${rewardPercent}%` }} />
-                  </div>
+                  {nextReward && (
+                    <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[var(--panel)]">
+                      <div className="h-full rounded-full bg-[var(--rose)] transition-[width] duration-700" style={{ width: `${rewardPercent}%` }} />
+                    </div>
+                  )}
                   <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                     {rewardMilestones.map((reward) => {
                       const unlocked = visitCount >= reward.visits;
@@ -1284,9 +1323,9 @@ export default function AccountPage() {
                   {upcomingAppointments.map((item) => {
                     const meta = appointmentStatusMeta(item);
                     return (
-                      <article key={item.id} className="appointment-card appointment-card-next">
-                        <div className="flex flex-wrap items-center justify-between gap-3"><p className="font-serif text-3xl">{formatDate(item.appointment_date)} · {formatTime(item.appointment_time)}</p><span className={meta.className}>{meta.label}</span></div>
-                        {(item.custom_note || item.note) && <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{item.custom_note || item.note}</p>}
+                      <article key={item.id} className="appointment-card appointment-card-next w-full min-w-0 max-w-full">
+                        <div className="flex flex-wrap items-center justify-between gap-2"><p className="min-w-0 break-words font-serif text-2xl sm:text-3xl">{formatDate(item.appointment_date)} · {formatTime(item.appointment_time)}</p><span className={`${meta.className} shrink-0`}>{meta.label}</span></div>
+                        {(item.custom_note || item.note) && <p className="mt-3 break-words text-sm leading-7 text-[var(--muted)]">{item.custom_note || item.note}</p>}
                       </article>
                     );
                   })}
@@ -1301,9 +1340,9 @@ export default function AccountPage() {
                       {pastAppointments.map((item) => {
                         const meta = appointmentStatusMeta(item);
                         return (
-                          <article key={item.id} className="appointment-card opacity-75">
-                            <div className="flex flex-wrap items-center justify-between gap-3"><p className="font-serif text-2xl">{formatDate(item.appointment_date)} · {formatTime(item.appointment_time)}</p><span className={meta.className}>{meta.label}</span></div>
-                            {(item.custom_note || item.note) && <p className="mt-2 text-sm text-[var(--muted)]">{item.custom_note || item.note}</p>}
+                          <article key={item.id} className="appointment-card w-full min-w-0 max-w-full opacity-75">
+                            <div className="flex flex-wrap items-center justify-between gap-2"><p className="min-w-0 break-words font-serif text-xl sm:text-2xl">{formatDate(item.appointment_date)} · {formatTime(item.appointment_time)}</p><span className={`${meta.className} shrink-0`}>{meta.label}</span></div>
+                            {(item.custom_note || item.note) && <p className="mt-2 break-words text-sm text-[var(--muted)]">{item.custom_note || item.note}</p>}
                           </article>
                         );
                       })}
@@ -1539,6 +1578,28 @@ export default function AccountPage() {
       </div>
 
       {fullscreenInspiration && <div className="fixed inset-0 z-[115] bg-black/90 p-4 backdrop-blur-xl" onClick={() => setFullscreenInspiration(null)}><div className="mx-auto flex h-full max-w-5xl flex-col justify-center"><button type="button" onClick={() => setFullscreenInspiration(null)} className="mb-4 self-end rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white">Închide</button><img src={fullscreenInspiration.image_url} alt={fullscreenInspiration.title || "Inspirație"} className="max-h-[78vh] w-full rounded-[2rem] object-contain" />{(fullscreenInspiration.title || fullscreenInspiration.note) && <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-white/10 p-4 text-white"><p className="font-serif text-3xl">{fullscreenInspiration.title || "Inspirație"}</p>{fullscreenInspiration.note && <p className="mt-2 text-sm leading-7 text-white/70">{fullscreenInspiration.note}</p>}</div>}</div></div>}
+
+      {/* Bottom sheet „Mai multe" (doar mobil) */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-[118] lg:hidden" onClick={() => setMoreOpen(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-[1.8rem] border-t border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_94%,transparent)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[var(--line)]" />
+            <p className="lux-label px-1">Mai multe secțiuni</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {tabs.filter((t) => !["overview", "appointments", "rewards"].includes(t.id)).map((t) => (
+                <button key={t.id} onClick={() => selectTab(t.id)} className={`min-h-[48px] rounded-xl border px-3 py-2.5 text-left text-sm font-semibold ${activeTab === t.id ? "border-[var(--rose)] bg-[var(--panel-strong)] text-[var(--text)]" : "border-[var(--line)] bg-[var(--panel)] text-[var(--muted)]"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setMoreOpen(false)} className="mt-3 w-full rounded-full border border-[var(--line)] bg-[var(--panel)] py-3 text-sm font-semibold">Închide</button>
+          </div>
+        </div>
+      )}
 
       {guideOpen && <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-5 backdrop-blur-xl"><div className="lux-panel max-w-xl rounded-[2.4rem] p-7"><p className="lux-label">Ghid rapid</p><h2 className="editorial-title mt-3 text-5xl">Bine ai venit la neilzzbyanto</h2><div className="mt-6 space-y-4 text-sm leading-7 text-[var(--muted)]"><p><b>Inspirațiile mele:</b> salvează modele din galerie sau încarcă pozele tale.</p><p><b>Rewards & Rank:</b> urmărește progresul și descarcă voucher PNG.</p><p><b>Programări:</b> vezi următoarea programare și istoricul tău.</p><p><b>Notificări:</b> activează reminderele pentru programări și updates.</p><p><b>Review-uri:</b> după activare poți lăsa review verificat cu poză opțională.</p></div><button onClick={() => setGuideOpen(false)} className="lux-action lux-action-soft mt-7 rounded-full px-5 py-3 text-sm font-semibold">Am înțeles</button></div></div>}
     </main>
