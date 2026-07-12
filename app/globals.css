@@ -1400,3 +1400,44 @@ html[data-accent] .home-lux-bg::before {
 
 /* Perf: fără backdrop-blur uriaș pe body-ul de bază */
 body::before { display: none !important; }
+
+/* =========================================================
+   V94 — Anti-overflow orizontal global (mobile-first).
+   Cauza reală, nu doar overflow-x:hidden.
+   ========================================================= */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, video { max-width: 100%; }
+/* Emailuri / texte lungi nu trebuie să spargă layout-ul */
+.break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
+/* =========================================================
+   V95 — Account „Contul meu" premium (o singură animație)
+   ========================================================= */
+@keyframes accountEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.account-enter { animation: accountEnter .55s cubic-bezier(.2,.8,.2,1) both; }
+
+.account-hero-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 12% 0%, color-mix(in srgb, var(--rose) 12%, transparent), transparent 46%),
+    radial-gradient(110% 80% at 100% 100%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 44%),
+    linear-gradient(180deg, var(--panel-strong), var(--panel));
+}
+
+/* Inel de progres în jurul avatarului (conic-gradient setat inline) */
+.avatar-ring {
+  border-radius: 9999px;
+  padding: 3px;
+}
+.avatar-glow {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rose) 30%, transparent),
+    0 0 26px color-mix(in srgb, var(--rose) 30%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-enter { animation: none !important; }
+}

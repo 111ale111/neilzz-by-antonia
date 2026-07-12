@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import * as webpush from "web-push";
-import { requireAdmin } from "@/lib/auth/admin";
+import { createClient } from "@/lib/supabase/server";
 import { detectDevice, endpointPreview } from "@/lib/device";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type PushRow = {
   id: string;
@@ -12,45 +15,31 @@ type PushRow = {
   user_agent: string | null;
 };
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export async function POST() {
+  const supabase = await createClient();
 
-export async function POST(request: Request) {
-  const { supabase } = await requireAdmin();
-  const payload = await request.json().catch(() => ({}));
-  const recipientClientIds: string[] = Array.isArray(payload.clientIds) ? payload.clientIds.filter(Boolean) : [];
-  const title = String(payload.title || "neilzzbyanto").slice(0, 120);
-  const message = String(payload.message || "Ai o notificare nouă.").slice(0, 240);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "Neautentificat." }, { status: 401 });
+  }
 
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
 
-  const accountsTargeted = recipientClientIds.length;
-
   if (!publicKey || !privateKey || !subject) {
     return NextResponse.json({
-      accountsTargeted,
+      ok: false,
       subscriptionsFound: 0,
       attempted: 0,
       sent: 0,
       failed: 0,
       removedExpired: 0,
       errors: [],
-      error: "Cheile VAPID nu sunt configurate complet.",
-    });
-  }
-
-  if (accountsTargeted === 0) {
-    return NextResponse.json({
-      accountsTargeted: 0,
-      subscriptionsFound: 0,
-      attempted: 0,
-      sent: 0,
-      failed: 0,
-      removedExpired: 0,
-      errors: [],
-      error: "Nu a fost selectat niciun cont.",
+      error: "Cheile VAPID nu sunt configurate complet (public, privat, subiect).",
     });
   }
 
@@ -59,35 +48,36 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("push_subscriptions")
     .select("id, client_id, endpoint, p256dh, auth, user_agent")
-    .in("client_id", recipientClientIds);
+    .eq("client_id", user.id);
 
   if (error) {
-    return NextResponse.json({
-      accountsTargeted,
-      subscriptionsFound: 0,
-      attempted: 0,
-      sent: 0,
-      failed: 0,
-      removedExpired: 0,
-      errors: [],
-      error: error.message,
-    });
+    return NextResponse.json({ ok: false, subscriptionsFound: 0, attempted: 0, sent: 0, failed: 0, removedExpired: 0, errors: [], error: error.message });
   }
 
   const subscriptions = (data || []) as PushRow[];
 
   if (subscriptions.length === 0) {
     return NextResponse.json({
-      accountsTargeted,
+      ok: false,
       subscriptionsFound: 0,
       attempted: 0,
       sent: 0,
       failed: 0,
       removedExpired: 0,
       errors: [],
-      error: "Nu există niciun dispozitiv abonat pentru conturile selectate.",
+      error: "Niciun dispozitiv abonat pentru acest cont. Apasă „Reînregistrează dispozitivul”.",
     });
   }
+
+  const payload = JSON.stringify({
+    title: "Test Push neilzzbyanto",
+    body: "Notificarea Web Push funcționează pe acest dispozitiv.",
+    message: "Notificarea Web Push funcționează pe acest dispozitiv.",
+    url: "/account?tab=notifications",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: "neilzz-push-test",
+  });
 
   let sent = 0;
   let failed = 0;
@@ -97,42 +87,23 @@ export async function POST(request: Request) {
   const results = await Promise.allSettled(
     subscriptions.map(async (row) => {
       try {
-        await webpush.sendNotification(
-          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
-          JSON.stringify({
-            title,
-            body: message,
-            message,
-            url: "/account?tab=notifications",
-            icon: "/icon-192.png",
-            badge: "/icon-192.png",
-            tag: `neilzz-${Date.now()}`,
-          }),
-        );
+        await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload);
         return true;
       } catch (err: unknown) {
         const statusCode = Number((err as { statusCode?: number })?.statusCode || 0);
         let removed = false;
-        let removeError: string | null = null;
         if (statusCode === 404 || statusCode === 410) {
-          const { data: del, error: delErr } = await supabase
-            .from("push_subscriptions")
-            .delete()
-            .eq("id", row.id)
-            .select("id");
+          const { data: del } = await supabase.from("push_subscriptions").delete().eq("id", row.id).eq("client_id", user.id).select("id");
           removed = Boolean(del?.length);
-          removeError = delErr?.message ?? null;
           if (removed) removedExpired += 1;
         }
         errors.push({
           subscriptionId: row.id,
-          clientId: row.client_id,
-          device: detectDevice(row.user_agent),
           endpointPreview: endpointPreview(row.endpoint),
+          userAgent: detectDevice(row.user_agent),
           statusCode,
           message: (err as { body?: string; message?: string })?.body || (err as Error)?.message || "eroare push",
           removedExpired: removed,
-          removeError,
         });
         throw err;
       }
@@ -145,7 +116,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
-    accountsTargeted,
+    ok: sent > 0,
     subscriptionsFound: subscriptions.length,
     attempted: subscriptions.length,
     sent,

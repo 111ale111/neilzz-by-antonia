@@ -87,6 +87,16 @@ export function SiteHeader() {
   }, []);
 
 
+  // Blochează scroll-ul paginii când drawer-ul mobil este deschis.
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : prev || "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
   React.useEffect(() => {
     let active = true;
     const supabase = createClient();

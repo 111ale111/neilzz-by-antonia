@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import { createClient } from "@/lib/supabase/client";
 import { PwaInstallCard } from "@/components/pwa-install-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { downloadDataUrl, renderGiftCardPng } from "@/lib/gift-card-image";
+import { detectDevice, endpointPreview } from "@/lib/device";
 
 type GiftCard = {
   id: string;
@@ -39,12 +40,27 @@ type GiftCard = {
 };
 
 type PushDiag = {
+  secureContext: boolean;
+  origin: string;
   permission: string;
   sw: boolean;
+  swVersion: string;
   browserSub: boolean;
   supabaseSub: boolean;
+  endpointPreview: string;
+  device: string;
   vapid: boolean;
+  lastLocalTest: string;
+  lastRealTest: string;
   lastError: string;
+};
+
+type PushDevice = {
+  id: string;
+  endpoint: string;
+  user_agent: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 type Profil = {
@@ -146,9 +162,9 @@ function getRank(visits: number) {
 }
 
 const rewardMilestones = [
-  { visits: 3, label: "French free", short: "French" },
+  { visits: 3, label: "French gratuit", short: "French" },
   { visits: 5, label: "10% OFF", short: "10%" },
-  { visits: 7, label: "Charms free", short: "Charms" },
+  { visits: 7, label: "Charms gratuit", short: "Charms" },
   { visits: 10, label: "25% OFF", short: "25%" },
   { visits: 15, label: "50% OFF", short: "50%" },
 ];
@@ -243,6 +259,42 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+// Count-up discret, o singură dată; respectă prefers-reduced-motion.
+function CountUp({ value, suffix = "", duration = 700 }: { value: number; suffix?: string; duration?: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(value);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(value * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{display}{suffix}</>;
+}
+
+// Empty state premium, compact (iconiță + titlu + o frază + CTA).
+function EmptyState({ icon, title, text, actionLabel, onAction }: { icon: ReactNode; title: string; text: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <div className="grid place-items-center rounded-[1.6rem] border border-dashed border-[var(--line)] bg-[var(--panel)] p-6 text-center">
+      <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] text-[var(--rose-strong)]">{icon}</span>
+      <p className="mt-3 font-serif text-2xl">{title}</p>
+      <p className="mt-1.5 max-w-sm text-sm leading-6 text-[var(--muted)]">{text}</p>
+      {actionLabel && onAction && (
+        <button type="button" onClick={onAction} className="lux-action lux-action-soft mt-4 rounded-full px-5 py-2.5 text-sm font-semibold">{actionLabel}</button>
+      )}
+    </div>
+  );
+}
+
 export default function AccountPage() {
   const supabase = createClient();
   const [profile, setProfil] = useState<Profil | null>(null);
@@ -252,7 +304,8 @@ export default function AccountPage() {
   const [notifications, setNotificări] = useState<NotificationItem[]>([]);
   const [myReviews, setMyReviews] = useState<MyReview[]>([]);
   const [giftCards, setGiftCards] = useState<GiftCard[]>([]);
-  const [pushDiag, setPushDiag] = useState<PushDiag>({ permission: "—", sw: false, browserSub: false, supabaseSub: false, vapid: false, lastError: "" });
+  const [pushDiag, setPushDiag] = useState<PushDiag>({ secureContext: false, origin: "", permission: "—", sw: false, swVersion: "v20", browserSub: false, supabaseSub: false, endpointPreview: "—", device: "—", vapid: false, lastLocalTest: "—", lastRealTest: "—", lastError: "" });
+  const [pushDevices, setPushDevices] = useState<PushDevice[]>([]);
   const [code, setCode] = useState("");
   const [fullName, setFullName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -377,6 +430,11 @@ export default function AccountPage() {
     refreshPushDiag();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (profile?.id) refreshPushDiag();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
 
   useEffect(() => {
     if (!loading && typeof window !== "undefined" && !window.localStorage.getItem("neilzz-quick-guide-seen")) {
@@ -716,7 +774,7 @@ export default function AccountPage() {
 
   async function getNotificationRegistration() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
-    const registration = await navigator.serviceWorker.register("/sw.js?v=19", { scope: "/" });
+    const registration = await navigator.serviceWorker.register("/sw.js?v=20", { scope: "/" });
     await navigator.serviceWorker.ready;
     return registration;
   }
@@ -742,33 +800,101 @@ export default function AccountPage() {
     }
   }
 
+  async function loadPushDevices() {
+    if (!profile) return;
+    const { data } = await supabase
+      .from("push_subscriptions")
+      .select("id,endpoint,user_agent,created_at,updated_at")
+      .eq("client_id", profile.id)
+      .order("updated_at", { ascending: false });
+    if (data) setPushDevices(data as PushDevice[]);
+  }
+
   async function refreshPushDiag() {
-    const diag: PushDiag = {
-      permission: typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
-      sw: false,
-      browserSub: false,
-      supabaseSub: false,
-      vapid: !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      lastError: "",
-    };
+    setPushDiag((prev) => {
+      const next: PushDiag = {
+        ...prev,
+        secureContext: typeof window !== "undefined" ? window.isSecureContext : false,
+        origin: typeof window !== "undefined" ? window.location.origin : "",
+        permission: typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
+        vapid: !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      };
+      return next;
+    });
     try {
+      let sw = false;
+      let browserSub = false;
+      let supabaseSub = false;
+      let endpoint: string | null = null;
       if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
-        diag.sw = !!reg?.active;
+        sw = !!reg?.active;
         const sub = reg?.pushManager ? await reg.pushManager.getSubscription() : null;
-        diag.browserSub = !!sub;
+        browserSub = !!sub;
+        endpoint = sub?.endpoint ?? null;
         if (sub) {
           const { count } = await supabase
             .from("push_subscriptions")
             .select("id", { count: "exact", head: true })
             .eq("endpoint", sub.endpoint);
-          diag.supabaseSub = (count || 0) > 0;
+          supabaseSub = (count || 0) > 0;
         }
       }
+      setPushDiag((prev) => ({
+        ...prev,
+        sw,
+        browserSub,
+        supabaseSub,
+        endpointPreview: endpointPreview(endpoint),
+        device: typeof navigator !== "undefined" ? detectDevice(navigator.userAgent) : "—",
+        lastError: "",
+      }));
     } catch (error) {
-      diag.lastError = error instanceof Error ? error.message : String(error);
+      setPushDiag((prev) => ({ ...prev, lastError: error instanceof Error ? error.message : String(error) }));
     }
-    setPushDiag(diag);
+    await loadPushDevices();
+  }
+
+  async function removeDevice(device: { endpoint: string }) {
+    setActionLoading("remove-device");
+    try {
+      const res = await fetch("/api/push/unsubscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: device.endpoint }),
+      });
+      const data = await res.json().catch(() => ({}));
+      // Dacă e dispozitivul curent, dezabonează și în browser.
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = reg?.pushManager ? await reg.pushManager.getSubscription() : null;
+        if (sub && sub.endpoint === device.endpoint) await sub.unsubscribe();
+      }
+      setMessage(data?.deleted ? "Dispozitivul a fost eliminat." : `Nu s-a eliminat: ${data?.error || "necunoscut"}`);
+      await refreshPushDiag();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Eliminarea a eșuat.");
+    }
+    setActionLoading(null);
+  }
+
+  async function testRealPush() {
+    setActionLoading("test-real");
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (data?.error) {
+        setMessage(`Test Push real: ${data.error}`);
+      } else {
+        const firstErr = Array.isArray(data.errors) && data.errors[0] ? ` Motiv: ${data.errors[0].message} (HTTP ${data.errors[0].statusCode}).` : "";
+        setMessage(`Test Push real: ${data.sent}/${data.subscriptionsFound} trimise, ${data.failed} eșuate.${firstErr}`);
+      }
+      setPushDiag((prev) => ({ ...prev, lastRealTest: new Date().toLocaleTimeString("ro-RO") }));
+      await refreshPushDiag();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Testul Push real a eșuat.");
+    }
+    setActionLoading(null);
   }
 
   async function enableNotificări() {
@@ -842,13 +968,30 @@ export default function AccountPage() {
         setActionLoading(null);
         return;
       }
+
+      // 1-3. Curăță întâi endpoint-ul VECHI al ACESTUI browser din Supabase, apoi din browser.
       const existing = await registration.pushManager.getSubscription();
-      if (existing) await existing.unsubscribe();
+      if (existing) {
+        const oldEndpoint = existing.endpoint;
+        await fetch("/api/push/unsubscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: oldEndpoint }),
+        }).catch(() => {});
+        await existing.unsubscribe().catch(() => {});
+      }
+
+      // 4. Actualizează service worker-ul.
+      await registration.update().catch(() => {});
+
+      // 5-6. Abonament nou cu cheia VAPID actuală + salvare.
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
       const { saved, error } = await saveSubscription(subscription);
+
+      // 9. Succes doar dacă noul endpoint e salvat.
       setMessage(saved ? "Dispozitivul a fost reînregistrat cu noua cheie VAPID." : `Reînregistrare eșuată: ${error}`);
       await refreshPushDiag();
       await loadAccount();
@@ -875,45 +1018,17 @@ export default function AccountPage() {
       if (registration?.showNotification) {
         await registration.showNotification("Test neilzzbyanto", {
           body: "Notificările simple merg pe acest dispozitiv.",
-          icon: "/icon-192.png?v=19",
-          badge: "/icon-192.png?v=19",
+          icon: "/icon-192.png?v=20",
+          badge: "/icon-192.png?v=20",
           tag: `neilzz-test-${Date.now()}`,
         });
       } else {
         new Notification("Test neilzzbyanto", { body: "Notificările pe telefon merg." });
       }
-      setMessage("Notificare test trimisă. Pe iPhone poate apărea în Notification Center dacă aplicația este deschisă.");
+      setPushDiag((prev) => ({ ...prev, lastLocalTest: new Date().toLocaleTimeString("ro-RO") }));
+      setMessage("Test local trimis. Verifică notificarea din browser / Notification Center.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Notificarea test nu a putut fi trimisă.");
-    }
-  }
-
-  async function testDelayedNotification() {
-    setMessage("");
-    try {
-      if (typeof window === "undefined" || !("Notification" in window)) {
-        setMessage("Browserul nu suportă notificări.");
-        return;
-      }
-      let permission = Notification.permission;
-      if (permission !== "granted") permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setMessage("Permisiunea pentru notificări nu este activă.");
-        return;
-      }
-      await getNotificationRegistration();
-      setMessage("Test programat în 8 secunde. Pune aplicația în background sau blochează telefonul.");
-      window.setTimeout(async () => {
-        const registration = await navigator.serviceWorker.ready;
-        await registration.showNotification("Reminder test neilzzbyanto", {
-          body: "Acesta este testul după 8 secunde. Așa vor funcționa reminderele.",
-          icon: "/icon-192.png?v=19",
-          badge: "/icon-192.png?v=19",
-          tag: `neilzz-delayed-${Date.now()}`,
-        });
-      }, 8000);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Testul programat nu a putut fi trimis.");
     }
   }
 
@@ -1015,42 +1130,46 @@ export default function AccountPage() {
         )}
 
 
-        <header className="lux-panel rounded-[2.2rem] p-5 md:rounded-[2.7rem] md:p-8">
+        <header className="account-hero-card account-enter lux-panel rounded-[2.2rem] p-5 md:rounded-[2.7rem] md:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center gap-4 sm:gap-5">
-              <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border border-[var(--line)] bg-[var(--panel-strong)] text-2xl font-semibold text-[var(--rose-strong)] sm:h-24 sm:w-24">
-                {profile?.avatar_url ? <img src={profile.avatar_url} alt="Profil" className="h-full w-full object-cover" /> : initials(profile?.full_name, profile?.email)}
+            <div className="flex min-w-0 flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:gap-5 sm:text-left">
+              <div
+                className="avatar-ring shrink-0"
+                style={{ background: `conic-gradient(var(--rose-strong) ${profileCompletion * 3.6}deg, color-mix(in srgb, var(--line) 100%, transparent) 0deg)` }}
+                title={`Profil ${profileCompletion}%`}
+              >
+                <div className="avatar-glow grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border border-[var(--bg)] bg-[var(--panel-strong)] text-2xl font-semibold text-[var(--rose-strong)] sm:h-24 sm:w-24">
+                  {profile?.avatar_url ? <img src={profile.avatar_url} alt="Profil" className="h-full w-full object-cover" /> : initials(profile?.full_name, profile?.email)}
+                </div>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="lux-label">Contul meu</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2.5">
-                  <h1 className="editorial-title break-words text-3xl leading-none sm:text-5xl md:text-6xl">{fullName || profile?.email?.split("@")[0] || "Cont neilzzbyanto"}</h1>
+                <h1 className="editorial-title mt-2 break-words text-3xl leading-none sm:text-5xl md:text-6xl">{fullName || profile?.email?.split("@")[0] || "Cont neilzzbyanto"}</h1>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   {profile?.is_activated && (
-                    <span className="verified-lux-badge" title="Cont verificat">
-                      <BadgeCheck className="h-4 w-4" /> Verificat
-                    </span>
+                    <span className="verified-lux-badge" title="Cont verificat"><BadgeCheck className="h-4 w-4" /> Verificat</span>
                   )}
+                  <span className="rank-lux-badge">
+                    {rank.name === "Clientă elite" ? <Crown className="h-4 w-4" /> : rank.name === "Clientă VIP" ? <Gem className="h-4 w-4" /> : rank.name === "Clientă regulară" ? <Trophy className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                    {rank.name}
+                  </span>
                 </div>
-                <p className="mt-2 text-sm text-[var(--muted)] [overflow-wrap:anywhere]">{profile?.email}</p>
-                <span className="rank-lux-badge mt-3">
-                  {rank.name === "Clientă elite" ? <Crown className="h-4 w-4" /> : rank.name === "Clientă VIP" ? <Gem className="h-4 w-4" /> : rank.name === "Clientă regulară" ? <Trophy className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
-                  {rank.name}
-                </span>
+                <p className="mt-2.5 break-anywhere text-sm text-[var(--muted)]">{profile?.email}</p>
               </div>
             </div>
             <div className="grid w-full grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
               <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Membră din</p><p className="mt-1.5 text-sm font-semibold sm:text-base">{formatDate(profile?.created_at)}</p></div>
-              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Vizite</p><p className="mt-1.5 text-sm font-semibold sm:text-base">{visitCount}</p></div>
-              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Profil</p><p className="mt-1.5 text-sm font-semibold sm:text-base">{profileCompletion}%</p></div>
+              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Vizite</p><p className="mt-1.5 text-sm font-semibold sm:text-base"><CountUp value={visitCount} /></p></div>
+              <div className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4"><p className="text-[0.6rem] uppercase tracking-[.18em] text-[var(--faint)] sm:text-xs sm:tracking-[.28em]">Profil</p><p className="mt-1.5 text-sm font-semibold sm:text-base"><CountUp value={profileCompletion} suffix="%" /></p></div>
             </div>
           </div>
         </header>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[250px_1fr]">
-          <aside className="lux-panel h-fit rounded-[2rem] p-3 lg:sticky lg:top-6">
-            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 lg:grid lg:overflow-visible lg:pb-0">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[230px_1fr] lg:items-start">
+          <aside className="lux-panel h-fit rounded-[2rem] p-2.5 lg:sticky lg:top-6 lg:self-start">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 lg:grid lg:gap-1 lg:overflow-visible lg:pb-0">
               {tabs.map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? "shrink-0 rounded-2xl bg-[var(--panel-strong)] px-4 py-3 text-left text-sm font-semibold text-[var(--text)] shadow-[inset_0_1px_0_rgba(255,255,255,.08)] lg:w-full" : "shrink-0 rounded-2xl px-4 py-3 text-left text-sm text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)] lg:w-full"}>
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={activeTab === tab.id ? "shrink-0 rounded-xl bg-[var(--panel-strong)] px-4 py-2.5 text-left text-sm font-semibold text-[var(--text)] shadow-[inset_0_1px_0_rgba(255,255,255,.08)] lg:w-full" : "shrink-0 rounded-xl px-4 py-2.5 text-left text-sm text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)] lg:w-full"}>
                   {tab.label}
                 </button>
               ))}
@@ -1059,45 +1178,81 @@ export default function AccountPage() {
 
           <section className="min-w-0">
             {activeTab === "overview" && (
-              <div className="grid gap-5 xl:grid-cols-2">
-                <section className="account-next-card lux-panel rounded-[2.3rem] p-5 md:p-6">
-                  <p className="lux-label">Următoarea programare</p>
-                  <h2 className="editorial-title mt-3 text-4xl">{nextAppointment ? formatDate(nextAppointment.appointment_date) : "Nicio programare activă"}</h2>
-                  <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{nextAppointment ? `${formatTime(nextAppointment.appointment_time)} · ${nextAppointment.custom_note || nextAppointment.note || "Programare confirmată"}` : "Aici apare doar următoarea programare reală, nu tot istoricul."}</p>
-                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    {nextAppointment && <span className={appointmentStatusMeta(nextAppointment).className}>{appointmentStatusMeta(nextAppointment).label}</span>}
-                    <button onClick={() => setActiveTab("appointments")} className="account-action-pill">Vezi programările</button>
-                  </div>
-                </section>
-                <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
-                  <p className="lux-label">Rank & rewards</p>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <span className="rank-orb">{rank.name === "Clientă elite" ? <Crown className="h-6 w-6" /> : rank.name === "Clientă VIP" ? <Gem className="h-6 w-6" /> : rank.name === "Clientă regulară" ? <Trophy className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}</span>
-                      <h2 className="editorial-title mt-4 text-5xl leading-none">{rank.name}</h2>
-                      <p className="mt-4 text-sm text-[var(--muted)]">{nextRankVizite ? `Mai ai ${visitsToNextRank} vizite până la următorul rank.` : "Ai ajuns la cel mai înalt rank."}</p>
+              <div className="grid items-start gap-5 xl:grid-cols-2">
+                {/* Următoarea programare — două stări distincte */}
+                {nextAppointment ? (
+                  <section className="lux-panel h-fit rounded-[2.3rem] p-5 md:p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="lux-label">Următoarea programare</p>
+                      <span className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-3 py-1 text-xs font-semibold text-[var(--rose-strong)]">
+                        {(() => { const d = Math.ceil((new Date(nextAppointment.appointment_date + "T12:00:00").getTime() - Date.now()) / 86400000); return d <= 0 ? "astăzi" : d === 1 ? "mâine" : `în ${d} zile`; })()}
+                      </span>
                     </div>
-                    <Sparkles className="h-8 w-8 text-[var(--rose-strong)]" />
+                    <h2 className="editorial-title mt-3 text-3xl sm:text-4xl">{formatDate(nextAppointment.appointment_date)}</h2>
+                    <p className="mt-2 text-sm leading-7 text-[var(--muted)]">{formatTime(nextAppointment.appointment_time)} · {nextAppointment.custom_note || nextAppointment.note || "Programare confirmată"}</p>
+                    <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                      <span className={appointmentStatusMeta(nextAppointment).className}>{appointmentStatusMeta(nextAppointment).label}</span>
+                      <button onClick={() => setActiveTab("appointments")} className="account-action-pill">Detalii</button>
+                    </div>
+                  </section>
+                ) : (
+                  <section className="lux-panel h-fit rounded-[2.3rem] p-5 md:p-6">
+                    <p className="lux-label">Următoarea programare</p>
+                    <div className="mt-4 flex items-start gap-3">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] text-[var(--rose-strong)]"><CalendarDays className="h-5 w-5" /></span>
+                      <div className="min-w-0">
+                        <p className="font-serif text-2xl">Nicio programare activă</p>
+                        <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Aici apare următoarea ta programare confirmată.</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button onClick={() => setActiveTab("appointments")} className="account-action-pill">Vezi programările</button>
+                      <a href="/booking" className="lux-action lux-action-soft rounded-full px-5 py-2.5 text-sm font-semibold">Solicită o programare</a>
+                    </div>
+                  </section>
+                )}
+
+                {/* Rank & rewards */}
+                <section className="lux-panel rounded-[2.3rem] p-6 md:p-7">
+                  <div className="flex items-center gap-4">
+                    <span className="rank-orb shrink-0">{rank.name === "Clientă elite" ? <Crown className="h-6 w-6" /> : rank.name === "Clientă VIP" ? <Gem className="h-6 w-6" /> : rank.name === "Clientă regulară" ? <Trophy className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}</span>
+                    <div className="min-w-0">
+                      <p className="lux-label">Rank &amp; rewards</p>
+                      <h2 className="editorial-title mt-1.5 text-3xl leading-none sm:text-4xl">{rank.name}</h2>
+                    </div>
                   </div>
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    {rewardMilestones.slice(0, 4).map((reward) => {
+                  <p className="mt-4 text-sm text-[var(--muted)]">{nextReward ? `Încă ${Math.max(nextReward.visits - visitCount, 0)} vizite până la ${nextReward.label}.` : "Ai deblocat toate recompensele disponibile."}</p>
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[var(--panel)]">
+                    <div className="h-full rounded-full bg-[var(--rose)] transition-[width] duration-700" style={{ width: `${rewardPercent}%` }} />
+                  </div>
+                  <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                    {rewardMilestones.map((reward) => {
                       const unlocked = visitCount >= reward.visits;
+                      const isNext = nextReward?.visits === reward.visits;
                       return (
-                        <div key={reward.visits} className={unlocked ? "reward-mini-card reward-mini-card-unlocked" : "reward-mini-card"}>
-                          {unlocked ? <BadgeCheck className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                          <div><p className="text-[0.65rem] uppercase tracking-[.28em] text-[var(--faint)]">{reward.visits} vizite</p><p className="font-serif text-2xl text-[var(--text)]">{reward.label}</p></div>
+                        <div key={reward.visits} className={`rounded-2xl border p-3 ${unlocked ? "border-[color-mix(in_srgb,var(--rose)_40%,var(--line))] bg-[color-mix(in_srgb,var(--rose)_10%,var(--panel))]" : isNext ? "border-[var(--gold)]/40 bg-[var(--panel)]" : "border-[var(--line)] bg-[var(--panel)] opacity-60"}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[0.58rem] uppercase tracking-[.2em] text-[var(--faint)]">{reward.visits} vizite</p>
+                            {unlocked ? <BadgeCheck className="h-3.5 w-3.5 text-[var(--rose-strong)]" /> : <Lock className="h-3.5 w-3.5 text-[var(--faint)]" />}
+                          </div>
+                          <p className="mt-1.5 font-serif text-xl text-[var(--text)]">{reward.label}</p>
+                          {isNext && <p className="mt-1 text-[0.62rem] font-bold uppercase tracking-[.16em] text-[var(--gold)]">Următoarea</p>}
                         </div>
                       );
                     })}
                   </div>
                 </section>
+
+                {/* Shortcut-uri */}
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8 xl:col-span-2">
                   <p className="lux-label">Shortcut-uri</p>
-                  <div className="mt-5 grid gap-3 md:grid-cols-5">
-                    <button onClick={() => setActiveTab("appointments")} className="premium-tile"><CalendarDays className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Programări</p><p className="mt-1 text-sm text-[var(--muted)]">{upcomingAppointments.length} viitoare</p></button>
-                    <button onClick={() => setActiveTab("rewards")} className="premium-tile"><Gift className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Rewards</p><p className="mt-1 text-sm text-[var(--muted)]">{rewards.length} carduri</p></button>
-                    <button onClick={() => setActiveTab("inspirations")} className="premium-tile"><ImagePlus className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Inspirații</p><p className="mt-1 text-sm text-[var(--muted)]">{inspirations.length} poze salvate</p></button>
-                    <button onClick={() => setActiveTab("reviews")} className="premium-tile"><Star className="h-5 w-5" /><p className="mt-3 font-serif text-2xl">Lasă review</p><p className="mt-1 text-sm text-[var(--muted)]">{myReviews.length} trimise</p></button>
+                  <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">
+                    <button onClick={() => setActiveTab("appointments")} className="premium-tile min-h-[92px]"><CalendarDays className="h-5 w-5" /><p className="mt-2.5 font-serif text-xl sm:text-2xl">Programări</p><p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">{upcomingAppointments.length} viitoare</p></button>
+                    <button onClick={() => setActiveTab("rewards")} className="premium-tile min-h-[92px]"><Gift className="h-5 w-5" /><p className="mt-2.5 font-serif text-xl sm:text-2xl">Rewards</p><p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">{rewards.length} carduri</p></button>
+                    <button onClick={() => setActiveTab("inspirations")} className="premium-tile min-h-[92px]"><ImagePlus className="h-5 w-5" /><p className="mt-2.5 font-serif text-xl sm:text-2xl">Inspirații</p><p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">{inspirations.length} salvate</p></button>
+                    <button onClick={() => setActiveTab("reviews")} className="premium-tile min-h-[92px]"><Star className="h-5 w-5" /><p className="mt-2.5 font-serif text-xl sm:text-2xl">Review</p><p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">{myReviews.length} trimise</p></button>
+                    <button onClick={() => setActiveTab("giftcards")} className="premium-tile min-h-[92px]"><Gift className="h-5 w-5" /><p className="mt-2.5 font-serif text-xl sm:text-2xl">Carduri cadou</p><p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">{giftCards.length} carduri</p></button>
+                    <button onClick={() => setActiveTab("notifications")} className="premium-tile min-h-[92px]"><Bell className="h-5 w-5" /><p className="mt-2.5 font-serif text-xl sm:text-2xl">Notificări</p><p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">{notifications.length} recente</p></button>
                   </div>
                 </section>
                 <section className="lux-panel rounded-[2.3rem] p-6 md:p-8 xl:col-span-2">
@@ -1135,7 +1290,9 @@ export default function AccountPage() {
                       </article>
                     );
                   })}
-                  {upcomingAppointments.length === 0 && <div className="rounded-[1.7rem] border border-[var(--line)] bg-[var(--panel)] p-5 text-sm text-[var(--muted)]">Nu ai programări viitoare.</div>}
+                  {upcomingAppointments.length === 0 && (
+                    <EmptyState icon={<CalendarDays className="h-5 w-5" />} title="Nicio programare viitoare" text="Solicită o programare pe Instagram și va apărea aici după confirmare." actionLabel="Solicită o programare" onAction={() => { window.location.href = "/booking"; }} />
+                  )}
                 </div>
                 {pastAppointments.length > 0 && (
                   <div className="mt-9">
@@ -1158,7 +1315,7 @@ export default function AccountPage() {
 
             {activeTab === "rewards" && (
               <section className="lux-panel rounded-[2.3rem] p-6 md:p-8">
-                <p className="lux-label">Rewards</p><h2 className="editorial-title mt-3 text-5xl">Progres reward</h2><p className="mt-4 text-sm text-[var(--muted)]">{nextReward ? `Încă ${Math.max(nextReward.visits - visitCount, 0)} vizite până la ${nextReward.label}.` : "Ai atins toate milestone-urile de reward."}</p>
+                <p className="lux-label">Rewards</p><h2 className="editorial-title mt-3 text-5xl">Progres reward</h2><p className="mt-4 text-sm text-[var(--muted)]">{nextReward ? `Încă ${Math.max(nextReward.visits - visitCount, 0)} vizite până la ${nextReward.label}.` : "Ai deblocat toate recompensele disponibile."}</p>
                 <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-center"><div className="relative grid h-32 w-32 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--rose-strong) ${rewardPercent}%, rgba(255,255,255,.08) 0)` }}><div className="grid h-[6.6rem] w-[6.6rem] place-items-center rounded-full bg-[var(--bg)] text-3xl font-semibold">{rewardPercent}%</div></div><div className="flex-1"><div className="h-3 overflow-hidden rounded-full bg-[var(--panel)]"><div className="h-full rounded-full bg-[var(--rose)]" style={{ width: `${rewardPercent}%` }} /></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{rewardMilestones.map((item) => { const unlocked = visitCount >= item.visits; return <div key={item.visits} className={unlocked ? "reward-milestone reward-milestone-unlocked" : "reward-milestone"}><div className="flex items-center justify-between gap-3"><p className="lux-label">{item.visits} vizite</p>{unlocked ? <BadgeCheck className="h-4 w-4 text-[var(--rose-strong)]" /> : <Lock className="h-4 w-4 text-[var(--faint)]" />}</div><p className="mt-3 font-serif text-3xl">{item.label}</p><p className="mt-2 text-xs text-[var(--muted)]">{unlocked ? "Deblocat" : `${item.visits - visitCount} vizite rămase`}</p></div>; })}</div></div></div>
                 <div className="mt-7 grid gap-4 lg:grid-cols-[1fr_.8fr]">
                   <div className="rounded-[1.8rem] border border-[var(--line)] bg-[var(--panel)] p-5">
@@ -1254,6 +1411,9 @@ export default function AccountPage() {
                   </div>
                 </form>
                 <div className="mt-8 grid gap-4 md:grid-cols-2">
+                  {myReviews.length === 0 && (
+                    <EmptyState icon={<Star className="h-5 w-5" />} title="Niciun review trimis" text="După o ședință poți lăsa un review verificat cu poză opțională." />
+                  )}
                   {myReviews.map((review) => <article key={review.id} className="rounded-[1.7rem] border border-[var(--line)] bg-[var(--panel)] p-5">{review.photo_url && <img src={review.photo_url} alt="Review" className="mb-4 aspect-[4/3] w-full rounded-[1.25rem] object-cover" />}<div className="flex items-center justify-between gap-3"><p className="text-sm text-[var(--rose-strong)]">{"★".repeat(review.rating || 5)}</p><span className={review.is_approved ? "status-pill status-available mt-0" : "status-pill status-limited mt-0"}>{review.is_approved ? "Publicat" : "În așteptare"}</span></div><p className="mt-4 text-sm leading-7 text-[var(--muted)]">“{review.text}”</p><p className="mt-3 text-xs text-[var(--faint)]">{formatDate(review.created_at)}</p></article>)}
                   {myReviews.length === 0 && <div className="rounded-[1.7rem] border border-[var(--line)] bg-[var(--panel)] p-5 text-sm leading-7 text-[var(--muted)]">Nu ai lăsat încă niciun review.</div>}
                 </div>
@@ -1273,23 +1433,30 @@ export default function AccountPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="button" onClick={enableNotificări} disabled={actionLoading === "notifications"} className="lux-action lux-action-soft rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"><Bell className="mr-2 inline h-4 w-4" /> {actionLoading === "notifications" ? "Se activează..." : "Activează notificările"}</button>
-                  <button type="button" onClick={reregisterDevice} disabled={actionLoading === "reregister"} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-5 py-3 text-sm font-semibold disabled:opacity-50">{actionLoading === "reregister" ? "Se reînregistrează..." : "Reînregistrează acest dispozitiv"}</button>
-                  <button type="button" onClick={testNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold">Test acum</button>
-                  <button type="button" onClick={testDelayedNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold">Test 8s</button>
+                  <button type="button" onClick={reregisterDevice} disabled={actionLoading === "reregister"} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-5 py-3 text-sm font-semibold disabled:opacity-50">{actionLoading === "reregister" ? "Se reînregistrează..." : "Reînregistrează dispozitivul"}</button>
+                  <button type="button" onClick={testNotification} className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold">Test local</button>
+                  <button type="button" onClick={testRealPush} disabled={actionLoading === "test-real"} className="rounded-full border border-[var(--line)] bg-[var(--text)] px-4 py-2.5 text-sm font-semibold text-[var(--bg)] disabled:opacity-50">{actionLoading === "test-real" ? "Se testează..." : "Testează Push real"}</button>
                 </div>
+                <p className="mt-2 text-xs leading-5 text-[var(--faint)]"><b>Test local</b> verifică permisiunea și service worker-ul. <b>Testează Push real</b> verifică trimiterea completă server → dispozitiv.</p>
 
-                {/* Diagnostic push */}
+                {/* Diagnostic push complet */}
                 <div className="mt-6 grid gap-2 sm:grid-cols-2">
                   {[
-                    { label: "Permisiune browser", ok: pushDiag.permission === "granted", value: pushDiag.permission },
-                    { label: "Service Worker", ok: pushDiag.sw, value: pushDiag.sw ? "activ" : "inactiv" },
-                    { label: "Subscription în browser", ok: pushDiag.browserSub, value: pushDiag.browserSub ? "prezent" : "lipsă" },
-                    { label: "Salvat în Supabase", ok: pushDiag.supabaseSub, value: pushDiag.supabaseSub ? "da" : "nu" },
+                    { label: "Context securizat", ok: pushDiag.secureContext, value: pushDiag.secureContext ? "da" : "nu" },
+                    { label: "Origine", ok: true, value: pushDiag.origin || "—" },
+                    { label: "Permisiune", ok: pushDiag.permission === "granted", value: pushDiag.permission },
+                    { label: "Service Worker", ok: pushDiag.sw, value: pushDiag.sw ? `activ (${pushDiag.swVersion})` : "inactiv" },
+                    { label: "Subscription browser", ok: pushDiag.browserSub, value: pushDiag.browserSub ? "activ" : "lipsă" },
+                    { label: "Subscription Supabase", ok: pushDiag.supabaseSub, value: pushDiag.supabaseSub ? "salvat" : "lipsă" },
+                    { label: "Endpoint", ok: pushDiag.browserSub, value: pushDiag.endpointPreview },
+                    { label: "Dispozitiv detectat", ok: true, value: pushDiag.device },
                     { label: "Cheie VAPID publică", ok: pushDiag.vapid, value: pushDiag.vapid ? "configurată" : "lipsă" },
+                    { label: "Ultimul test local", ok: pushDiag.lastLocalTest !== "—", value: pushDiag.lastLocalTest },
+                    { label: "Ultimul Push real", ok: pushDiag.lastRealTest !== "—", value: pushDiag.lastRealTest },
                   ].map((row) => (
-                    <div key={row.label} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm">
-                      <span className="min-w-0 text-[var(--muted)]">{row.label}</span>
-                      <span className={`shrink-0 font-semibold ${row.ok ? "text-emerald-300" : "text-[var(--rose-strong)]"}`}>{row.ok ? "✓ " : "○ "}{row.value}</span>
+                    <div key={row.label} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm">
+                      <span className="min-w-0 shrink-0 text-[var(--muted)]">{row.label}</span>
+                      <span className={`min-w-0 truncate text-right font-semibold ${row.ok ? "text-emerald-300" : "text-[var(--rose-strong)]"}`}>{row.value}</span>
                     </div>
                   ))}
                   {pushDiag.lastError && (
@@ -1299,9 +1466,33 @@ export default function AccountPage() {
                   )}
                 </div>
 
+                {/* Lista dispozitivelor proprii */}
+                <div className="mt-6">
+                  <p className="lux-label">Dispozitivele tale</p>
+                  {pushDevices.length === 0 ? (
+                    <p className="mt-3 text-sm text-[var(--muted)]">Niciun dispozitiv înregistrat pentru push.</p>
+                  ) : (
+                    <div className="mt-3 grid gap-2">
+                      {pushDevices.map((d) => (
+                        <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold">{detectDevice(d.user_agent)}</p>
+                            <p className="mt-0.5 text-xs text-[var(--faint)]">{endpointPreview(d.endpoint)} · înregistrat {formatDate(d.created_at)}</p>
+                          </div>
+                          <button type="button" onClick={() => removeDevice(d)} disabled={actionLoading === "remove-device"} className="shrink-0 rounded-full border border-[#e0808f]/40 bg-[#e0808f]/10 px-4 py-2 text-xs font-semibold text-[#f0b7c0] disabled:opacity-50">Elimină</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="mt-6"><PwaInstallCard /></div>
 
-                <div className="mt-7 space-y-4">{notifications.map((item, index) => <div key={item.id} className="grid gap-3 md:grid-cols-[80px_1fr]"><div className="text-xs uppercase tracking-[.22em] text-[var(--faint)]">{index === 0 ? "Recent" : formatDate(item.created_at)}</div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"><p className="lux-label">{item.status || "in-app"}</p><p className="mt-2 font-serif text-2xl md:text-3xl">{item.title}</p><p className="mt-2 text-sm leading-7 text-[var(--muted)]">{item.message}</p></div></div>)}</div>
+                <div className="mt-7 space-y-4">
+                  {notifications.length === 0 && (
+                    <EmptyState icon={<Bell className="h-5 w-5" />} title="Nicio notificare" text="Aici apar actualizările și reminderele de la Antonia." />
+                  )}
+                  {notifications.map((item, index) => <div key={item.id} className="grid gap-3 md:grid-cols-[80px_1fr]"><div className="text-xs uppercase tracking-[.22em] text-[var(--faint)]">{index === 0 ? "Recent" : formatDate(item.created_at)}</div><div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"><p className="lux-label">{item.status || "in-app"}</p><p className="mt-2 font-serif text-2xl md:text-3xl">{item.title}</p><p className="mt-2 text-sm leading-7 text-[var(--muted)]">{item.message}</p></div></div>)}</div>
               </section>
             )}
 

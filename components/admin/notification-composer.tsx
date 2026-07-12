@@ -13,6 +13,25 @@ type Profile = {
 
 type DeliveryMode = "instant" | "scheduled";
 
+type PushError = {
+  device?: string;
+  statusCode?: number;
+  message?: string;
+  removedExpired?: boolean;
+};
+
+type PushSendResult = {
+  inAppCreated: number;
+  accountsTargeted: number;
+  subscriptionsFound: number;
+  pushAttempted: number;
+  pushSent: number;
+  pushFailed: number;
+  removedExpired: number;
+  pushErrors: PushError[];
+  note?: string;
+};
+
 export function NotificationComposer({ profiles }: { profiles: Profile[] }) {
   const supabase = createClient();
   const [clientId, setClientId] = useState("all");
@@ -22,6 +41,7 @@ export function NotificationComposer({ profiles }: { profiles: Profile[] }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [pushResult, setPushResult] = useState<PushSendResult | null>(null);
 
   const sortedProfiles = useMemo(
     () => [...profiles].sort((a, b) => (a.full_name || a.email || "").localeCompare(b.full_name || b.email || "")),
@@ -61,38 +81,59 @@ export function NotificationComposer({ profiles }: { profiles: Profile[] }) {
       delivered_at: deliveryMode === "instant" ? now : null,
     }));
 
+    setPushResult(null);
     const { error } = await supabase.from("client_notifications").insert(payload);
     if (error) {
       setLoading(false);
-      setFeedback(error.message);
+      setFeedback(`Notificarea în aplicație nu a putut fi creată: ${error.message}`);
       return;
     }
 
-    let pushText = "";
-    if (deliveryMode === "instant") {
-      try {
-        const response = await fetch("/api/push/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientIds: targets.map((profile) => profile.id),
-            title: cleanTitle,
-            message: cleanMessage,
-          }),
-        });
-        const result = await response.json();
-        if (result?.error) {
-          pushText = ` Push telefon: ${result.error}`;
-        } else {
-          pushText = ` Push telefon: ${result.sent || 0}/${result.subscriptionsFound || 0} dispozitive.${result.failed ? ` ${result.failed} eșuate.` : ""}`;
-        }
-      } catch {
-        pushText = " Push telefon nu a putut fi trimis acum.";
-      }
+    const inAppCreated = targets.length;
+
+    if (deliveryMode === "scheduled") {
+      setLoading(false);
+      setFeedback(`Notificare în aplicație programată pentru ${inAppCreated} cont(uri).`);
+      setTitle("");
+      setMessage("");
+      setScheduledFor("");
+      return;
+    }
+
+    // Push-ul se raportează SEPARAT de notificarea in-app.
+    let pushLine = "";
+    try {
+      const response = await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientIds: targets.map((profile) => profile.id),
+          title: cleanTitle,
+          message: cleanMessage,
+        }),
+      });
+      const result = await response.json();
+      const summary: PushSendResult = {
+        inAppCreated,
+        accountsTargeted: result.accountsTargeted ?? inAppCreated,
+        subscriptionsFound: result.subscriptionsFound ?? 0,
+        pushAttempted: result.attempted ?? 0,
+        pushSent: result.sent ?? 0,
+        pushFailed: result.failed ?? 0,
+        removedExpired: result.removedExpired ?? 0,
+        pushErrors: Array.isArray(result.errors) ? result.errors : [],
+        note: result.error,
+      };
+      setPushResult(summary);
+      pushLine = summary.note
+        ? `Push: ${summary.note}`
+        : `Push: ${summary.pushSent}/${summary.subscriptionsFound} dispozitive.${summary.pushFailed ? ` ${summary.pushFailed} eșuate.` : ""}`;
+    } catch {
+      pushLine = "Push: cererea a eșuat.";
     }
 
     setLoading(false);
-    setFeedback(deliveryMode === "scheduled" ? `Notificare programată pentru ${targets.length} cont(uri).` : `Notificare trimisă instant pentru ${targets.length} cont(uri).${pushText}`);
+    setFeedback(`Notificare în aplicație creată pentru ${inAppCreated} cont(uri). ${pushLine}`);
     setTitle("");
     setMessage("");
     setScheduledFor("");
@@ -141,6 +182,29 @@ export function NotificationComposer({ profiles }: { profiles: Profile[] }) {
           {loading ? "Se salvează..." : deliveryMode === "scheduled" ? "Programează notificarea" : "Trimite instant"}
         </button>
         {feedback && <p className="text-sm text-[var(--rose-strong)]">{feedback}</p>}
+
+        {pushResult && (
+          <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 text-sm">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
+              <span className="text-[var(--muted)]">În aplicație: <b className="text-[var(--text)]">{pushResult.inAppCreated}</b></span>
+              <span className="text-[var(--muted)]">Conturi: <b className="text-[var(--text)]">{pushResult.accountsTargeted}</b></span>
+              <span className="text-[var(--muted)]">Dispozitive: <b className="text-[var(--text)]">{pushResult.subscriptionsFound}</b></span>
+              <span className="text-[var(--muted)]">Push trimise: <b className="text-emerald-300">{pushResult.pushSent}</b></span>
+              <span className="text-[var(--muted)]">Push eșuate: <b className="text-[var(--rose-strong)]">{pushResult.pushFailed}</b></span>
+              <span className="text-[var(--muted)]">Expirate șterse: <b className="text-[var(--text)]">{pushResult.removedExpired}</b></span>
+            </div>
+            {pushResult.pushErrors.length > 0 && (
+              <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">
+                {pushResult.pushErrors.map((err, i) => (
+                  <div key={i} className="text-xs text-[var(--muted)]">
+                    <b className="text-[var(--text)]">{err.device || "Dispozitiv"}</b> · HTTP {err.statusCode ?? "—"} · {err.message}
+                    {err.removedExpired ? " · abonament expirat eliminat" : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </form>
     </section>
   );

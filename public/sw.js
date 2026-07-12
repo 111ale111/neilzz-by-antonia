@@ -1,6 +1,6 @@
-const CACHE_VERSION = 'neilzz-stage-19-v1';
+const CACHE_VERSION = 'neilzz-push-v20';
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -18,37 +18,59 @@ self.addEventListener('message', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'neilzzbyanto', {
       body: data.body || 'Ai o notificare nouă.',
-      icon: data.icon || '/icon-192.png?v=19',
-      badge: data.badge || '/icon-192.png?v=19',
+      icon: data.icon || '/icon-192.png',
+      badge: data.badge || '/icon-192.png',
       tag: data.tag || `neilzz-${Date.now()}`,
       renotify: true,
-      data: { url: data.url || '/account' },
+      data: { url: data.url || '/account?tab=notifications' },
     })
   );
 });
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'neilzzbyanto', body: 'Ai o notificare nouă.' };
+  let payload = {};
   try {
-    if (event.data) data = event.data.json();
-  } catch (error) {
-    data = { title: 'neilzzbyanto', body: event.data ? event.data.text() : 'Ai o notificare nouă.' };
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {
+      title: 'neilzzbyanto',
+      body: event.data ? event.data.text() : '',
+    };
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'neilzzbyanto', {
-      body: data.body || data.message || 'Ai o notificare nouă.',
-      icon: '/icon-192.png?v=19',
-      badge: '/icon-192.png?v=19',
-      tag: data.tag || `neilzz-update-${Date.now()}`,
-      renotify: true,
-      data: { url: data.url || '/account' },
+    self.registration.showNotification(payload.title || 'neilzzbyanto', {
+      body: payload.body || payload.message || '',
+      icon: payload.icon || '/icon-192.png',
+      badge: payload.badge || '/icon-192.png',
+      tag: payload.tag || `neilzz-${Date.now()}`,
+      data: {
+        url: payload.url || '/account?tab=notifications',
+      },
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/account';
-  event.waitUntil(clients.openWindow(url));
+  const url = event.notification.data?.url || '/account?tab=notifications';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        try {
+          const sameOrigin = new URL(client.url).origin === self.location.origin;
+          if (sameOrigin && 'focus' in client) {
+            if ('navigate' in client) {
+              return client.focus().then((focused) => (focused && focused.navigate ? focused.navigate(url) : focused));
+            }
+            return client.focus();
+          }
+        } catch {
+          // ignoră URL-uri invalide
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
 });
